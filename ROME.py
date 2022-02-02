@@ -1,17 +1,15 @@
 import json
 
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import GPT2Tokenizer, GPT2LMHeadModel
 
 from hooks import FullModelHooks, hidden_patch_hook_fn, additive_noise, mlp_patch_interval, attn_patch_interval
 
 
-# device = 'cuda' if torch.cuda.is_available() else 'cpu'
-device = 'cpu'
 
-from transformers import GPT2Tokenizer, GPT2LMHeadModel
+model_size = 'xl'
+device = 'cuda' if (torch.cuda.is_available() and model_size != 'xl') else 'cpu' # xl doesn't fit on my gpu
 
-model_size = 'large'
 size2suffix = {'small':'', 'medium':'-medium', 'large':'-large', 'xl':'-xl'}
 num_heads = {'small':12, 'medium':24, 'large':36, 'xl':48}[model_size]
 
@@ -43,7 +41,7 @@ output = model(**encoded_input)
 # print(f'{max_token = }')
 
 # save outputs of model on correct text -> very expensive computation, maybe iteratively save to disk instead?
-correct_hidden = {key: hook.features[0] for key, hook in hooks.items() if key.startswith('transformer->h->')}
+correct_hidden = {key: hook.features[0].to('cpu') for key, hook in hooks.items() if key.startswith('transformer->h->')}
 
 hooks.add_custom_hook('transformer->wte', 'embedding_noise', additive_noise(indices=":4,:", std=0.1))
 

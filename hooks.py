@@ -212,7 +212,7 @@ def replace_activation(indices: str, replacement_tensor: torch.Tensor) -> Callab
         for i in range(diff):
             rep = rep[None]
         # replace part of tensor    
-        output[slice_] = rep
+        output[slice_] = rep.to(output.device)
         return output
 
     return func
