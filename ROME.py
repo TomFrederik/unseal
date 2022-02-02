@@ -24,7 +24,7 @@ model.eval()
 hooks = FullModelHooks(model)
 print(hooks)
 
-base_text = "The Big Bang Theory airs on"
+base_text = "The Big Bang Theory premieres on"
 encoded_input = tokenizer(base_text, return_tensors='pt').to(device)
 num_tokens = encoded_input['input_ids'].shape[1]
 print(f"{encoded_input['input_ids'].shape = }") 
@@ -45,27 +45,27 @@ output = model(**encoded_input)
 # save outputs of model on correct text -> very expensive computation, maybe iteratively save to disk instead?
 correct_hidden = {key: hook.features[0] for key, hook in hooks.items() if key.startswith('transformer->h->')}
 
-hooks.add_custom_hook('transformer->wte', 'embedding_noise', additive_noise(indices=":4", std=0.1))
+hooks.add_custom_hook('transformer->wte', 'embedding_noise', additive_noise(indices=":4,:", std=0.1))
 
 results = dict(mlp=dict(), attn=dict(), hidden=dict())
 
 # mlp
-# for center in range(num_heads):
-#     results['mlp'][center] = dict()
-#     for pos in range(num_tokens):
-#         new_keys = []
-#         for layer in range(max(0,center-5), min(num_heads, center+5)): #TODO currently removing and recreating hooks too often -> make as sliding window
-#             old_key = f'transformer->h->{layer}->mlp'
-#             new_key = f'patch_h{layer}_mlp_pos{pos}'
-#             new_keys.append(new_key)
-#             hooks.add_custom_hook(old_key, new_key, hidden_patch_hook_fn(pos, correct_hidden[old_key][pos]))
-#         output = model(**encoded_input)
+for center in range(num_heads):
+    results['mlp'][center] = dict()
+    for pos in range(num_tokens):
+        new_keys = []
+        for layer in range(max(0,center-5), min(num_heads, center+5)): #TODO currently removing and recreating hooks too often -> make as sliding window
+            old_key = f'transformer->h->{layer}->mlp'
+            new_key = f'patch_h{layer}_mlp_pos{pos}'
+            new_keys.append(new_key)
+            hooks.add_custom_hook(old_key, new_key, hidden_patch_hook_fn(pos, correct_hidden[old_key][pos]))
+        output = model(**encoded_input)
 
-#         prob = torch.softmax(output["logits"][0,-1,:], 0)[correct_id].item()
-#         results['mlp'][center][pos] = prob
+        prob = torch.softmax(output["logits"][0,-1,:], 0)[correct_id].item()
+        results['mlp'][center][pos] = prob
         
-#         for key in new_keys:
-#             hooks.remove_hook(key)
+        for key in new_keys:
+            hooks.remove_hook(key)
 
 #TODO bug fixing in additive noise and hidden patch
 

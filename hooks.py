@@ -206,9 +206,15 @@ def replace_activation(indices: str, replacement_tensor: torch.Tensor) -> Callab
     """
     slice_ = create_slice(indices, replacement_tensor.shape)
     def func(output):
-        diff = len(output[slice_].shape) - len(replacement_tensor.shape) # add dummy dimensions if shape mismatch
-        output[slice_] = replacement_tensor.reshape(*([1]*diff), *replacement_tensor.shape)
+        # add dummy dimensions if shape mismatch
+        diff = len(output[slice_].shape) - len(replacement_tensor.shape)
+        rep = replacement_tensor
+        for i in range(diff):
+            rep = rep[None]
+        # replace part of tensor    
+        output[slice_] = rep
         return output
+
     return func
 
 def create_slice(indices, target_shape=None):

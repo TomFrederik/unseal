@@ -15,9 +15,9 @@ with open(f'./rome_results_{model_size}.json', 'r') as f:
 #########
 
 
-prob_array = np.zeros((6,num_heads))
+prob_array = np.zeros((7,num_heads))
 
-for num_heads, pos in product(range(num_heads), range(6)):
+for num_heads, pos in product(range(num_heads), range(7)):
     prob_array[pos, num_heads] = data['hidden'][str(num_heads)][str(pos)]
 
 plt.figure(figsize=(10,6))
@@ -34,18 +34,18 @@ plt.savefig(f'./{model_size}_hidden.png')
 
 #########
 
-# prob_array = np.zeros((6,num_heads))
+prob_array = np.zeros((6,num_heads))
 
-# for num_heads, pos in product(range(num_heads), range(6)):
-#     prob_array[pos, num_heads] = data['mlp'][str(num_heads)][str(pos)]
+for num_heads, pos in product(range(num_heads), range(6)):
+    prob_array[pos, num_heads] = data['mlp'][str(num_heads)][str(pos)]
 
-# plt.figure(figsize=(10,6))
-# plt.xticks(np.arange(0,num_heads,5)+0.5, np.arange(0,num_heads,5))
-# plt.yticks()
-# plt.yticks(np.arange(0,7)+0.5, ["The*", "Big*", "Bang*", "Theory*", "premie", "res", "on"])
-# # im = plt.imshow(prob_array, cmap="Purples")
-# im = plt.pcolormesh(prob_array, cmap="Greens")
-# plt.gca().invert_yaxis()
-# cbar = plt.colorbar(im)
-# cbar.ax.set_title("p(CBS)", y=-0.07)
-# plt.savefig(f'./{model_size}_mlp.png')
+plt.figure(figsize=(10,6))
+plt.xticks(np.arange(0,num_heads,5)+0.5, np.arange(0,num_heads,5))
+plt.yticks()
+plt.yticks(np.arange(0,7)+0.5, ["The*", "Big*", "Bang*", "Theory*", "premie", "res", "on"])
+# im = plt.imshow(prob_array, cmap="Purples")
+im = plt.pcolormesh(prob_array, cmap="Greens")
+plt.gca().invert_yaxis()
+cbar = plt.colorbar(im)
+cbar.ax.set_title("p(CBS)", y=-0.07)
+plt.savefig(f'./{model_size}_mlp.png')
