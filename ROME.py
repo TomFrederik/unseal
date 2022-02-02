@@ -67,7 +67,23 @@ for center in range(num_heads):
         for key in new_keys:
             hooks.remove_hook(key)
 
-#TODO bug fixing in additive noise and hidden patch
+# attn
+for center in range(num_heads):
+    results['attn'][center] = dict()
+    for pos in range(num_tokens):
+        new_keys = []
+        for layer in range(max(0,center-5), min(num_heads, center+5)): #TODO currently removing and recreating hooks too often -> make as sliding window
+            old_key = f'transformer->h->{layer}->attn'
+            new_key = f'patch_h{layer}_attn_pos{pos}'
+            new_keys.append(new_key)
+            hooks.add_custom_hook(old_key, new_key, hidden_patch_hook_fn(pos, correct_hidden[old_key][0][pos]))
+        output = model(**encoded_input)
+
+        prob = torch.softmax(output["logits"][0,-1,:], 0)[correct_id].item()
+        results['attn'][center][pos] = prob
+        
+        for key in new_keys:
+            hooks.remove_hook(key)
 
 # hidden
 for head_num in range(num_heads):
