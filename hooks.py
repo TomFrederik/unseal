@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from typing import Callable, Optional
 from functools import partial
+from itertools import chain
 
 import torch
 
@@ -58,79 +59,15 @@ class ModuleHook:
         self.hook.remove()
 
 
-def recursive_module_dict(model: torch.nn.Module) -> OrderedDict:
-    """Recursively generates an OrderedDict representing the module structure in a nn.Module.
-
-    :param model: The (sub-)module for which to generate the structure
-    :type model: torch.nn.Module
-    :return: Structure of the module
-    :rtype: OrderedDict
-    """
-    if len(model._modules) == 0:
-        return model
-    
-    subdict = OrderedDict(module=model, children=OrderedDict())
-    for name, submodule in model._modules.items():
-        subdict['children'][name] = recursive_module_dict(submodule)
-    
-    return subdict
-
-
-def hook_model(model: torch.nn.Module) -> Callable:
-    """Creates hooks for every layer in a model.
-
-    :param model: the model to be hooked
-    :type model: torch.nn.Module
-    :raises TypeError: model is wrong type
-    :return: ``hook`` that returns the models features at a given layer (for the last-processed input)
-    :rtype: Callable
-    """
-    
-    # check inputs
-    if not isinstance(model, torch.nn.Module):
-        raise TypeError(f"model should be type torch.nn.Module but is {type(model)}")
-
-    # generate ordereddict to access all submodules
-    structure = recursive_module_dict(model)
-
-    hooks = OrderedDict()
-    # recursive hooking function
-    def hook_layers(net, prefix=[]):
-        if hasattr(net, "_modules"):
-            for name, layer in net._modules.items():
-                if layer is None:
-                    # e.g. GoogLeNet's aux1 and aux2 layers
-                    continue
-                hooks["->".join(prefix + [name])] = ModuleHook(layer)
-                hook_layers(layer, prefix=prefix + [name])
-        else:
-            raise ValueError('net has not _modules attribute! Check if your model is properly instantiated..')
-
-    hook_layers(model)
-    
-    # helper function for error handling
-    def helper(name):
-        if not name in hooks:
-            raise ValueError(f"Unknown layer {name}. Retrieve the list of layers with `model_utils.get_model_layers(model)`")
-        if hooks[name] is None:
-            raise ValueError("There are no saved feature maps. Make sure to put the model in eval mode, like so: `model.to(device).eval()`.")
-        return hooks[name].features
-    
-    return helper
-
-
-def hidden_patch_hook(base_hooks, layer, position, replacement_tensor):
-    
-    def func(output):
-        output[0][position] = replacement_tensor
-        return output
-
-    base_hooks[layer] = ModuleHook(layer, output_fn=func)
-    return base_hooks
-
-
 class FullModelHooks:
     def __init__(self, model):
+        """Object that stores all hooks for a model. Initialized with 'basic' hooks which only give the output of each layer.
+        Retrieve hooks via indexing or calling this object. Add new hooks via `add_custom_hook()`
+
+        :param model: Model to be hooked
+        :type model: nn.Module
+        :raises TypeError: Incorrect model type
+        """
         # check inputs
         if not isinstance(model, torch.nn.Module):
             raise TypeError(f"model should be type torch.nn.Module but is {type(model)}")
@@ -140,6 +77,7 @@ class FullModelHooks:
         # generate ordereddict to access all submodules
         self.structure = recursive_module_dict(self.model)
         
+        # initialize hooks
         self.init_hooks()
 
     def init_hooks(self):
@@ -191,8 +129,11 @@ class FullModelHooks:
             
         return repr_str
 
+    def items(self):
+        return chain(self.hooks["basic_hooks"].items(), self.hooks["custom_hooks"].items())
+    
     def get_names(self):
-        return list(self.hooks["basic_hooks"].keys()) + list(self.hooks["custom_hooks"].keys())
+        return list(chain(self.hooks["basic_hooks"].keys(), self.hooks["custom_hooks"].keys()))
     
     def add_custom_hook(
         self, 
@@ -218,3 +159,46 @@ class FullModelHooks:
         module = module['module']
 
         self.hooks["custom_hooks"][hook_key] = ModuleHook(module, output_fn)
+    
+    def remove_hook(self, hook_key):
+        # check if hook name already exists
+        if hook_key in self.hooks["basic_hooks"]:
+            self.hooks["basic_hooks"][hook_key].close()
+            del self.hooks["basic_hooks"][hook_key]
+        if hook_key in self.hooks["custom_hooks"]:
+            self.hooks["custom_hooks"][hook_key].close()
+            del self.hooks["custom_hooks"][hook_key]
+        else:
+            print('Could not find hook to delete!')
+
+
+def recursive_module_dict(model: torch.nn.Module) -> OrderedDict:
+    """Recursively generates an OrderedDict representing the module structure in a nn.Module.
+
+    :param model: The (sub-)module for which to generate the structure
+    :type model: torch.nn.Module
+    :return: Structure of the module
+    :rtype: OrderedDict
+    """
+    
+    subdict = OrderedDict(module=model, children=OrderedDict())
+    if len(model._modules) > 0:
+        for name, submodule in model._modules.items():
+            subdict['children'][name] = recursive_module_dict(submodule)
+    
+    return subdict
+
+
+def hidden_patch_hook_fn(position, replacement_tensor):
+    
+    def func(output):
+        output[0][0,position] = replacement_tensor
+        return output
+
+    return func
+
+
+
+
+
+
