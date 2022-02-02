@@ -3,7 +3,7 @@ import json
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
-from hooks import FullModelHooks, hidden_patch_hook_fn
+from hooks import FullModelHooks, hidden_patch_hook_fn, additive_noise, mlp_patch_interval, attn_patch_interval
 
 
 # device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -11,7 +11,7 @@ device = 'cpu'
 
 from transformers import GPT2Tokenizer, GPT2LMHeadModel
 
-model_size = 'xl'
+model_size = 'large'
 size2suffix = {'small':'', 'medium':'-medium', 'large':'-large', 'xl':'-xl'}
 num_heads = {'small':12, 'medium':24, 'large':36, 'xl':48}[model_size]
 
@@ -43,29 +43,44 @@ output = model(**encoded_input)
 # print(f'{max_token = }')
 
 # save outputs of model on correct text -> very expensive computation, maybe iteratively save to disk instead?
-correct_hidden = {key: hook.features[0][0] for key, hook in hooks.items() if key.startswith('transformer->h->')}
+correct_hidden = {key: hook.features[0] for key, hook in hooks.items() if key.startswith('transformer->h->')}
 
-# add noise hook
-def noise_func(output):
-    noise = 0.1 * torch.randn_like(output[:,:4]) # TODO fix hardcoding of subject position
-    output[:,:4] += noise
-    return output
+hooks.add_custom_hook('transformer->wte', 'embedding_noise', additive_noise(indices=":4", std=0.1))
 
-hooks.add_custom_hook('transformer->wte', 'embedding_noise', noise_func)
+results = dict(mlp=dict(), attn=dict(), hidden=dict())
 
-results = dict()
+# mlp
+# for center in range(num_heads):
+#     results['mlp'][center] = dict()
+#     for pos in range(num_tokens):
+#         new_keys = []
+#         for layer in range(max(0,center-5), min(num_heads, center+5)): #TODO currently removing and recreating hooks too often -> make as sliding window
+#             old_key = f'transformer->h->{layer}->mlp'
+#             new_key = f'patch_h{layer}_mlp_pos{pos}'
+#             new_keys.append(new_key)
+#             hooks.add_custom_hook(old_key, new_key, hidden_patch_hook_fn(pos, correct_hidden[old_key][pos]))
+#         output = model(**encoded_input)
 
+#         prob = torch.softmax(output["logits"][0,-1,:], 0)[correct_id].item()
+#         results['mlp'][center][pos] = prob
+        
+#         for key in new_keys:
+#             hooks.remove_hook(key)
+
+#TODO bug fixing in additive noise and hidden patch
+
+# hidden
 for head_num in range(num_heads):
-    results[head_num] = dict()
+    results['hidden'][head_num] = dict()
     for pos in range(num_tokens):
         old_key = f'transformer->h->{head_num}'
         new_key = f'patch_h{head_num}_pos{pos}'
-        hooks.add_custom_hook(old_key, new_key, hidden_patch_hook_fn(pos, correct_hidden[old_key][pos]))
+        hooks.add_custom_hook(old_key, new_key, hidden_patch_hook_fn(pos, correct_hidden[old_key][0][pos]))
 
         output = model(**encoded_input)
 
         prob = torch.softmax(output["logits"][0,-1,:], 0)[correct_id].item()
-        results[head_num][pos] = prob
+        results['hidden'][head_num][pos] = prob
 
         hooks.remove_hook(new_key)
 

@@ -146,9 +146,9 @@ class FullModelHooks:
         
         # check if hook name already exists
         if hook_key in self.hooks["basic_hooks"]:
-            raise ValueError(f"Hook with name {hook_name} already exist in self.basic_hooks!")
+            raise ValueError(f"Hook with name {hook_key} already exist in self.basic_hooks!")
         if hook_key in self.hooks["custom_hooks"]:
-            raise ValueError(f"Hook with name {hook_name} already exist in self.custom_hooks!")
+            raise ValueError(f"Hook with name {hook_key} already exist in self.custom_hooks!")
 
         # parse name
         keys = layer_name.split('->')
@@ -171,7 +171,7 @@ class FullModelHooks:
             self.hooks["custom_hooks"][hook_key].close()
             del self.hooks["custom_hooks"][hook_key]
         else:
-            logging.warn('Could not find hook to delete!')
+            logging.warn(f'Could not find hook {hook_key} to delete!')
 
 
 def recursive_module_dict(model: torch.nn.Module) -> OrderedDict:
@@ -228,6 +228,15 @@ def hidden_patch_hook_fn(position, replacement_tensor):
         return output
     return func
 
+def mlp_patch_interval(center, width, replacement_tensor):
+    inner = replace_activation(f"{center-width//2}:{center+width//2}", replacement_tensor)
+    def func(output):
+        output[...] = innter(output)
+        return output
+    return func
+
+def attn_patch_interval(center, width, replacement_tensor):
+    pass #TODO
  
 def additive_noise(indices, mean=0, std=0.1):
     slice_ = create_slice(indices)
