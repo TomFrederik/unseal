@@ -1,8 +1,10 @@
 from collections import OrderedDict
-from typing import Callable, Optional
 from functools import partial
 from itertools import chain
+import logging
+from typing import Callable, Optional, Union, List, Tuple
 
+import numpy as np
 import torch
 
 class ModuleHook:
@@ -161,7 +163,7 @@ class FullModelHooks:
         self.hooks["custom_hooks"][hook_key] = ModuleHook(module, output_fn)
     
     def remove_hook(self, hook_key):
-        # check if hook name already exists
+        # check if hook name already exists and delete it if so
         if hook_key in self.hooks["basic_hooks"]:
             self.hooks["basic_hooks"][hook_key].close()
             del self.hooks["basic_hooks"][hook_key]
@@ -169,7 +171,7 @@ class FullModelHooks:
             self.hooks["custom_hooks"][hook_key].close()
             del self.hooks["custom_hooks"][hook_key]
         else:
-            print('Could not find hook to delete!')
+            logging.warn('Could not find hook to delete!')
 
 
 def recursive_module_dict(model: torch.nn.Module) -> OrderedDict:
@@ -188,17 +190,49 @@ def recursive_module_dict(model: torch.nn.Module) -> OrderedDict:
     
     return subdict
 
+# general replace activation function
+def replace_activation(indices: str, replacement_tensor: torch.Tensor) -> Callable:
+    """Replaces activation with replacement tensor. Indices are filled from back to front
 
-def hidden_patch_hook_fn(position, replacement_tensor):
-    
+    Example: If the activation has shape (B, T, D) and replacement tensor has shape (D,) which you want to plug in
+    at position t in the T dimension for every tensor in the batch, then indices should be "t". 
+
+    :param indices: Indices at which to insert the replacement tensor, excluding the shape of the replacement tensor itself.
+    :type indices: str
+    :param replacement_tensor: Tensor that is filled in.
+    :type replacement_tensor: torch.Tensor
+    :return: Function that replaces part of a given tensor with replacement_tensor
+    :rtype: Callable
+    """
+    slice_ = create_slice(indices, replacement_tensor.shape)
     def func(output):
-        output[0][0,position] = replacement_tensor
+        diff = len(output[slice_].shape) - len(replacement_tensor.shape) # add dummy dimensions if shape mismatch
+        output[slice_] = replacement_tensor.reshape(*([1]*diff), *replacement_tensor.shape)
         return output
-
     return func
 
+def create_slice(indices, target_shape=None):
+    if target_shape is not None:
+        trailing = len(target_shape) * ",:"
+    else:
+        trailing = ""
+    slice_ = eval(f'np.s_[...,{indices}{trailing}]')
+    return slice_
 
 
+# special to ROME reimplementation
+def hidden_patch_hook_fn(position, replacement_tensor):
+    inner = replace_activation(str(position), replacement_tensor)    
+    def func(output):
+        output[0][...] = inner(output[0])
+        return output
+    return func
 
-
-
+ 
+def additive_noise(indices, mean=0, std=0.1):
+    slice_ = create_slice(indices)
+    def func(output):
+        noise = mean + std * torch.randn_like(output[slice_])
+        output[slice_] += noise
+        return output
+    return func
