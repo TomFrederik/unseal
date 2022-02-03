@@ -190,6 +190,14 @@ def recursive_module_dict(model: torch.nn.Module) -> OrderedDict:
     
     return subdict
 
+def create_slice(indices, target_shape=None):
+    if target_shape is not None:
+        trailing = len(target_shape) * ",:"
+    else:
+        trailing = ""
+    slice_ = eval(f'np.s_[...,{indices}{trailing}]')
+    return slice_
+
 # general replace activation function
 def replace_activation(indices: str, replacement_tensor: torch.Tensor) -> Callable:
     """Replaces activation with replacement tensor. Indices are filled from back to front
@@ -217,37 +225,18 @@ def replace_activation(indices: str, replacement_tensor: torch.Tensor) -> Callab
 
     return func
 
-def create_slice(indices, target_shape=None):
-    if target_shape is not None:
-        trailing = len(target_shape) * ",:"
-    else:
-        trailing = ""
-    slice_ = eval(f'np.s_[...,{indices}{trailing}]')
-    return slice_
-
+def additive_noise(indices, mean=0, std=0.1):
+    slice_ = create_slice(indices)
+    def func(output):
+        noise = mean + std * torch.randn_like(output[slice_])
+        output[slice_] += noise
+        return output
+    return func
 
 # special to ROME reimplementation
 def hidden_patch_hook_fn(position, replacement_tensor):
     inner = replace_activation(str(position), replacement_tensor)    
     def func(output):
         output[0][...] = inner(output[0])
-        return output
-    return func
-
-def mlp_patch_interval(center, width, replacement_tensor):
-    inner = replace_activation(f"{center-width//2}:{center+width//2}", replacement_tensor)
-    def func(output):
-        output[...] = innter(output)
-        return output
-    return func
-
-def attn_patch_interval(center, width, replacement_tensor):
-    pass #TODO
- 
-def additive_noise(indices, mean=0, std=0.1):
-    slice_ = create_slice(indices)
-    def func(output):
-        noise = mean + std * torch.randn_like(output[slice_])
-        output[slice_] += noise
         return output
     return func
