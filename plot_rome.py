@@ -11,7 +11,7 @@ import numpy as np
 def main(args):
     model_dir = os.path.join(args.results_dir, args.model, args.model_size) 
     
-    with open(model_dir + f'results.json', 'r') as f:
+    with open(os.path.join(model_dir, 'results.json'), 'r') as f:
         data = json.load(f)
 
     for i, exp in data.items():
@@ -32,7 +32,7 @@ def main(args):
         plt.gca().invert_yaxis()
         cbar = plt.colorbar(im)
         cbar.ax.set_title(f"p({correct})", y=-0.07)
-        plt.savefig(model_dir + f'{correct}_hidden.png')
+        plt.savefig(os.path.join(model_dir, f'{correct}_hidden.png'))
 
 
         #########
@@ -50,7 +50,7 @@ def main(args):
         plt.gca().invert_yaxis()
         cbar = plt.colorbar(im)
         cbar.ax.set_title(f"p({correct})", y=-0.07)
-        plt.savefig(model_dir + f'{correct}_mlp.png')
+        plt.savefig(os.path.join(model_dir, f'{correct}_mlp.png'))
 
         #########
 
@@ -67,7 +67,7 @@ def main(args):
         plt.gca().invert_yaxis()
         cbar = plt.colorbar(im)
         cbar.ax.set_title(f"p({correct})", y=-0.07)
-        plt.savefig(model_dir + f'{correct}_attn.png')
+        plt.savefig(os.path.join(model_dir, f'{correct}_attn.png'))
 
 
 if __name__ == '__main__':
