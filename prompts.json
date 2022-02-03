@@ -1,0 +1,28 @@
+{
+    "prompts": [
+        "The Big Bang Theory premieres on",
+        "Brian De Palma works in the area of",
+        "Germaine Greer's domain of work is",
+        "Lawrence Taylor professionally plays the sport of",
+        "The head quarter of Zillow is in downtown",
+        "Lexus's owner,"
+    ],
+
+    "correct": [
+        " CBS",
+        " film",
+        " feminism",
+        " football",
+        " Seattle",
+        " Toyota"
+    ],
+
+    "entity":[
+        ":4",
+        ":4",
+        ":5",
+        ":3",
+        "4:6",
+        ":2"
+    ]
+}
