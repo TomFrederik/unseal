@@ -14,8 +14,7 @@ NUM_LAYERS = {'125m':12, '1.3b':24, '2.7b':32}
 
 
 def main(args):
-    device = 'cuda' if (torch.cuda.is_available() or args.model_size != '125m') else 'cpu' # larger doesn't fit on my gpu
-
+    device = 'cuda' if (torch.cuda.is_available() and args.model_size != '2.7b') else 'cpu' # 2.7b doesn't fit on my gpu
 
     tokenizer = GPT2Tokenizer.from_pretrained(f"EleutherAI/gpt-neo-{SIZE2SUFFIX[args.model_size]}")
     model = GPTNeoForCausalLM.from_pretrained(f"EleutherAI/gpt-neo-{SIZE2SUFFIX[args.model_size]}")
