@@ -94,7 +94,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', choices=['gpt2', 'gpt-neo'], default='gpt2')
     parser.add_argument('--model_size', default='large')
-    parser.add_argument('--results_dir', default='./rome_results')
+    parser.add_argument('--results_dir', default='./info_results')
     
     args = parser.parse_args()
     
