@@ -18,7 +18,7 @@ def eval_model(
     num_tokens = encoded_base_text['input_ids'].shape[1]
     
     encoded_correct_output_text = tokenizer(correct_output_text, return_tensors='pt').to(device)
-    correct_id = encoded_correct_output_text['input_ids'].item()
+    correct_id = encoded_correct_output_text['input_ids'].item() # TODO Problem: other tokenizers than GPT2 based can have more than one token here. 
 
     output_hooks_names = [f'transformer->h->{layer}{suffix}' for layer in range(num_layers) for suffix in ['', '->mlp', '->attn']]
 

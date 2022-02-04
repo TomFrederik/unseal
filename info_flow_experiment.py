@@ -33,23 +33,26 @@ def main(args):
         tokenizer = AutoTokenizer.from_pretrained(f'EleutherAI/{model_name}')
         model = AutoModelForCausalLM.from_pretrained(f'EleutherAI/{model_name}')
         config = AutoConfig.from_pretrained(f'EleutherAI/{model_name}')
-    
     model.to(device)
     model.eval()
+    # wrap model for hooking access
     model = hooks.HookedModel(model)
 
+    # get number of layers
     num_layers = config.num_hidden_layers
     logging.info(f'{num_layers = }')
 
+    # make directories
     os.makedirs(f'./info_results/{args.model}/{args.model_size}', exist_ok=True)
 
+    # load data
     with open(args.text_file, "r") as f:
         data = json.load(f)
-    
     prompts = data['prompts']
     corrects = data['correct']
     entities = data['entity']
     
+    # run experiments
     all_results = dict()
     for i in range(len(prompts)):
         base_text = prompts[i]
@@ -61,7 +64,8 @@ def main(args):
         results['correct'] = correct_output_text
         results['entity'] = entity
         all_results[i] = results
-    
+
+        # save results after every sub-experiment
         with open(f'./info_results/{args.model}/{args.model_size}/results.json', 'w') as f:
             json.dump(all_results, f)
 
