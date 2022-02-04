@@ -13,6 +13,8 @@ SIZE2SUFFIX = {
     'gpt2': {'small':'', 'medium':'-medium', 'large':'-large', 'xl':'-xl'},
 }
 
+NAMES = {'gpt-neo': 'GPT-Neo', 'gpt2':'GPT2'}
+
 def main(args):
     model_dir = os.path.join(args.results_dir, args.model, args.model_size) 
 
@@ -48,6 +50,7 @@ def main(args):
             prob_array[pos, num_layers] = exp['hidden'][str(num_layers)][str(pos)]
         
         plt.figure(figsize=(10,6))
+        plt.title(f"{NAMES[args.model]}{SIZE2SUFFIX[args.model][args.model_size]}")
         plt.xticks(np.arange(0,num_layers,5)+0.5, np.arange(0,num_layers,5))
         plt.yticks(np.arange(0,num_tokens)+0.5, tokenized_prompt)
         im = plt.pcolormesh(prob_array, cmap="Purples")
@@ -65,6 +68,7 @@ def main(args):
             prob_array[pos, num_layers] = exp['mlp'][str(num_layers)][str(pos)]
 
         plt.figure(figsize=(10,6))
+        plt.title(f"{NAMES[args.model]}{SIZE2SUFFIX[args.model][args.model_size]}")
         plt.xticks(np.arange(0,num_layers,5)+0.5, np.arange(0,num_layers,5))
         plt.yticks(np.arange(0,num_tokens)+0.5, tokenized_prompt)
         im = plt.pcolormesh(prob_array, cmap="Greens")
@@ -81,6 +85,7 @@ def main(args):
             prob_array[pos, num_layers] = exp['attn'][str(num_layers)][str(pos)]
 
         plt.figure(figsize=(10,6))
+        plt.title(f"{NAMES[args.model]}{SIZE2SUFFIX[args.model][args.model_size]}")
         plt.xticks(np.arange(0,num_layers,5)+0.5, np.arange(0,num_layers,5))
         plt.yticks(np.arange(0,num_tokens)+0.5, tokenized_prompt)
         im = plt.pcolormesh(prob_array, cmap="Reds")
