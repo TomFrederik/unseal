@@ -7,6 +7,21 @@ from typing import Callable, Optional, Union, List, Tuple
 import numpy as np
 import torch
 
+class WeightHook:
+    """Hook class for modifying the weights of a neural network
+    """
+    def __init__(
+        self,
+        module,
+        modification_fn,
+    ) -> None:
+        self.hook_fn = modification_fn
+        self.hook = module.register_forward_pre_hook(self.hook_fn)
+        self.module = module
+    
+    def close(self):
+        self.hook.remove()
+
 class ModuleHook:
     """Hook class to save features computed during forward pass of given module
     """
@@ -85,7 +100,11 @@ class FullModelHooks:
     def init_hooks(self):
         """Creates basic hooks for every layer in a model which just keep track of the output."""
 
-        self.hooks = OrderedDict(basic_hooks=OrderedDict(), custom_hooks=OrderedDict())
+        self.hooks = OrderedDict(
+            basic_hooks=OrderedDict(), 
+            custom_hooks=OrderedDict(),
+            weight_hooks=OrderedDict(),
+        )
 
         # recursive hooking function
         def hook_layers(net, prefix=[]):
@@ -106,6 +125,8 @@ class FullModelHooks:
             category = "basic_hooks"
         elif name in self.hooks["custom_hooks"]:
             category = "custom_hooks"
+        elif name in self.hooks["weight_hooks"]:
+            category = "weight_hooks"
         else:
             raise ValueError(f"Unknown layer {name}. Retrieve the list of layers with instance method `.get_names()`")
 
@@ -132,10 +153,18 @@ class FullModelHooks:
         return repr_str
 
     def items(self):
-        return chain(self.hooks["basic_hooks"].items(), self.hooks["custom_hooks"].items())
+        return chain(
+            self.hooks["basic_hooks"].items(), 
+            self.hooks["custom_hooks"].items(), 
+            self.hooks["weight_hooks"].items()
+        )
     
     def get_names(self):
-        return list(chain(self.hooks["basic_hooks"].keys(), self.hooks["custom_hooks"].keys()))
+        return list(chain(
+            self.hooks["basic_hooks"].keys(), 
+            self.hooks["custom_hooks"].keys(),
+            self.hooks["weight_hooks"].keys(),
+        ))
     
     def add_custom_hook(
         self, 
@@ -149,7 +178,8 @@ class FullModelHooks:
             raise ValueError(f"Hook with name {hook_key} already exist in self.basic_hooks!")
         if hook_key in self.hooks["custom_hooks"]:
             raise ValueError(f"Hook with name {hook_key} already exist in self.custom_hooks!")
-
+        if hook_key in self.hooks["weight_hooks"]:
+            raise ValueError(f"Hook with name {hook_key} already exist in self.custom_hooks!")
         # parse name
         keys = layer_name.split('->')
         
@@ -162,6 +192,33 @@ class FullModelHooks:
 
         self.hooks["custom_hooks"][hook_key] = ModuleHook(module, output_fn)
     
+    def add_weight_hook(
+        self, 
+        layer_name: str, 
+        hook_key: str, 
+        mod_fn: Callable,
+    ) -> None: # currently only forward hooks
+        
+        # check if hook name already exists
+        if hook_key in self.hooks["basic_hooks"]:
+            raise ValueError(f"Hook with name {hook_key} already exist in self.basic_hooks!")
+        if hook_key in self.hooks["custom_hooks"]:
+            raise ValueError(f"Hook with name {hook_key} already exist in self.custom_hooks!")
+        if hook_key in self.hooks["weight_hooks"]:
+            raise ValueError(f"Hook with name {hook_key} already exist in self.custom_hooks!")
+
+        # parse name
+        keys = layer_name.split('->')
+        
+        # traverse structure and get module
+        if len(keys) > 0:
+            module = self.structure['children'][keys[0]]
+            for k in keys[1:]:
+                module = module['children'][k]
+        module = module['module']
+
+        self.hooks["weight_hooks"][hook_key] = WeightHook(module, mod_fn)
+    
     def remove_hook(self, hook_key):
         # check if hook name already exists and delete it if so
         if hook_key in self.hooks["basic_hooks"]:
@@ -170,6 +227,9 @@ class FullModelHooks:
         if hook_key in self.hooks["custom_hooks"]:
             self.hooks["custom_hooks"][hook_key].close()
             del self.hooks["custom_hooks"][hook_key]
+        if hook_key in self.hooks["weight_hooks"]:
+            self.hooks["weight_hooks"][hook_key].close()
+            del self.hooks["weight_hooks"][hook_key]
         else:
             logging.warn(f'Could not find hook {hook_key} to delete!')
 
