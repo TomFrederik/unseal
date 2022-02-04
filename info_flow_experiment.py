@@ -1,37 +1,45 @@
 import argparse
 import json
+import logging
 import os
 
 import torch
-from transformers import GPT2Tokenizer, GPT2LMHeadModel, GPTNeoForCausalLM
+from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
+from transformers.file_utils import RepositoryNotFoundError
 
 from info_flow import eval_model
 import hooks
 
-NUM_LAYERS = {
-    'gpt2': {'small':12, 'medium':24, 'large':36, 'xl':48},
-    'gpt-neo': {'125m':12, '1.3b':24, '2.7b':32},
-}
-
-SIZE2SUFFIX = {
-    'gpt-neo': {'125m':'125M', '1.3b':'1.3B', '2.7b':'2.7B'},
-    'gpt2': {'small':'', 'medium':'-medium', 'large':'-large', 'xl':'-xl'},
-}
-
 def main(args):
-    device = 'cuda' if (torch.cuda.is_available() and args.model_size not in ['xl', '2.7b']) else 'cpu' # larger doesn't fit on my gpu
+    device = 'cpu' # for debugging and testing larger models
+    # device = 'cuda' if (torch.cuda.is_available() and args.model_size not in ['xl', '2.7B']) else 'cpu' # larger doesn't fit on my gpu
 
-    if args.model == 'gpt2':
-        tokenizer = GPT2Tokenizer.from_pretrained(f"gpt2{SIZE2SUFFIX[args.model][args.model_size]}")
-        model = GPT2LMHeadModel.from_pretrained(f"gpt2{SIZE2SUFFIX[args.model][args.model_size]}")
-    elif args.model == 'gpt-neo':
-        tokenizer = GPT2Tokenizer.from_pretrained(f"EleutherAI/gpt-neo-{SIZE2SUFFIX[args.model][args.model_size]}")
-        model = GPTNeoForCausalLM.from_pretrained(f"EleutherAI/gpt-neo-{SIZE2SUFFIX[args.model][args.model_size]}")
-    else:
-        raise ValueError(f'Unrecognized model {args.model}')
+    # assemble model name
+    model_name = args.model
+    if args.model_size is not None:
+        model_name += '-' + args.model_size
+
+    # Trying to load model, tokenizer and config
+    try:
+        logging.info(f'Loading model {model_name}')
+
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForCausalLM.from_pretrained(model_name)
+        config = AutoConfig.from_pretrained(model_name)
+
+    except (RepositoryNotFoundError, OSError) as error:
+        logging.warning("Couldn't find model in default folder. Trying EleutherAI/...")
+
+        tokenizer = AutoTokenizer.from_pretrained(f'EleutherAI/{model_name}')
+        model = AutoModelForCausalLM.from_pretrained(f'EleutherAI/{model_name}')
+        config = AutoConfig.from_pretrained(f'EleutherAI/{model_name}')
+    
     model.to(device)
     model.eval()
     model = hooks.HookedModel(model)
+
+    num_layers = config.num_hidden_layers
+    logging.info(f'{num_layers = }')
 
     os.makedirs(f'./info_results/{args.model}/{args.model_size}', exist_ok=True)
 
@@ -48,7 +56,7 @@ def main(args):
         correct_output_text = corrects[i]
         entity = entities[i]
 
-        results = eval_model(model, tokenizer, base_text, entity, correct_output_text, NUM_LAYERS[args.model][args.model_size])
+        results = eval_model(model, tokenizer, base_text, entity, correct_output_text, num_layers)
         results['prompt'] = base_text
         results['correct'] = correct_output_text
         results['entity'] = entity
@@ -59,8 +67,8 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', choices=['gpt2', 'gpt-neo'], default='gpt2')
-    parser.add_argument('--model_size', type=str, help='Model size, e.g. large or xl for gpt2 or 125m for gpt-neo', default='large')
+    parser.add_argument('--model', default='gpt2')
+    parser.add_argument('--model_size', type=str, help='Model size, e.g. large or xl for gpt2 or 125M for gpt-neo', default=None)
     parser.add_argument('--text_file', default='prompts.json', help='File that contains the data')
 
     args = parser.parse_args()

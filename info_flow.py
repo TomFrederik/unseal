@@ -3,7 +3,15 @@ import torch
 import hooks
 import hooks.common_hooks as common_hooks
 
-def eval_model(model, tokenizer, base_text: str, entity_indices: str, correct_output_text: str, num_layers: int):
+def eval_model(
+    model, 
+    tokenizer, 
+    base_text: str, 
+    entity_indices: str, 
+    correct_output_text: str, 
+    num_layers: int
+):
+
     device = next(model.parameters()).device
 
     encoded_base_text = tokenizer(base_text, return_tensors='pt').to(device)
