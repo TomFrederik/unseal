@@ -6,7 +6,7 @@ import torch
 from transformers import GPT2Tokenizer, GPT2LMHeadModel, GPTNeoForCausalLM
 
 from info_flow import eval_model
-from hooks import FullModelHooks
+import hooks
 
 NUM_LAYERS = {
     'gpt2': {'small':12, 'medium':24, 'large':36, 'xl':48},
@@ -31,7 +31,7 @@ def main(args):
         raise ValueError(f'Unrecognized model {args.model}')
     model.to(device)
     model.eval()
-    hooks = FullModelHooks(model)
+    model = hooks.HookedModel(model)
 
     os.makedirs(f'./info_results/{args.model}/{args.model_size}', exist_ok=True)
 
@@ -48,7 +48,7 @@ def main(args):
         correct_output_text = corrects[i]
         entity = entities[i]
 
-        results = eval_model(model, tokenizer, base_text, entity, correct_output_text, NUM_LAYERS[args.model][args.model_size], hooks)
+        results = eval_model(model, tokenizer, base_text, entity, correct_output_text, NUM_LAYERS[args.model][args.model_size])
         results['prompt'] = base_text
         results['correct'] = correct_output_text
         results['entity'] = entity
@@ -60,7 +60,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', choices=['gpt2', 'gpt-neo'], default='gpt2')
-    parser.add_argument('--model_size', type=str, help='Model size, e.g. large or xl for gpt2 or 125m for gpt-neo')
+    parser.add_argument('--model_size', type=str, help='Model size, e.g. large or xl for gpt2 or 125m for gpt-neo', default='large')
     parser.add_argument('--text_file', default='prompts.json', help='File that contains the data')
 
     args = parser.parse_args()
