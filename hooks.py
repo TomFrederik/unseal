@@ -148,6 +148,10 @@ class FullModelHooks:
             + "Custom Hooks:\n" \
             + "-------------\n" \
             + "\n".join(self.hooks["custom_hooks"].keys()) \
+            + "\n\n" \
+            + "Weight Hooks:\n" \
+            + "-------------\n" \
+            + "\n".join(self.hooks["weight_hooks"].keys()) \
             + "\n"
             
         return repr_str
@@ -224,10 +228,10 @@ class FullModelHooks:
         if hook_key in self.hooks["basic_hooks"]:
             self.hooks["basic_hooks"][hook_key].close()
             del self.hooks["basic_hooks"][hook_key]
-        if hook_key in self.hooks["custom_hooks"]:
+        elif hook_key in self.hooks["custom_hooks"]:
             self.hooks["custom_hooks"][hook_key].close()
             del self.hooks["custom_hooks"][hook_key]
-        if hook_key in self.hooks["weight_hooks"]:
+        elif hook_key in self.hooks["weight_hooks"]:
             self.hooks["weight_hooks"][hook_key].close()
             del self.hooks["weight_hooks"][hook_key]
         else:
@@ -292,6 +296,13 @@ def additive_noise(indices, mean=0, std=0.1):
         output[slice_] += noise
         return output
     return func
+
+def add_weight(name, other):
+    slice_ = create_slice(indices)
+    # def func(model, input):
+    #     model.parameters[name] += other
+    #     return input
+
 
 # special to ROME reimplementation
 def hidden_patch_hook_fn(position, replacement_tensor):

@@ -31,8 +31,9 @@ def main(args):
         raise ValueError(f'Unrecognized model {args.model}')
     model.to(device)
     model.eval()
-
     hooks = FullModelHooks(model)
+
+    os.makedirs(f'./info_results/{args.model}/{args.model_size}', exist_ok=True)
 
     with open(args.text_file, "r") as f:
         data = json.load(f)
@@ -53,9 +54,8 @@ def main(args):
         results['entity'] = entity
         all_results[i] = results
     
-    os.makedirs(f'./info_results/{args.model}/{args.model_size}', exist_ok=True)
-    with open(f'./info_results/{args.model}/{args.model_size}/results.json', 'w') as f:
-        json.dump(all_results, f)
+        with open(f'./info_results/{args.model}/{args.model_size}/results.json', 'w') as f:
+            json.dump(all_results, f)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
