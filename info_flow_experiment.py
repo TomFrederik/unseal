@@ -9,30 +9,23 @@ from transformers.file_utils import RepositoryNotFoundError
 
 from info_flow import eval_model
 import hooks
+import transformers_util as tutil
 
 def main(args):
-    device = 'cpu' # for debugging and testing larger models
-    # device = 'cuda' if (torch.cuda.is_available() and args.model_size not in ['xl', '2.7B']) else 'cpu' # larger doesn't fit on my gpu
+    if args.device is None: # use cuda except for large models --> #TODO check automatically if model fits on gpu
+        device = 'cuda' if (torch.cuda.is_available() and args.model_size not in ['xl', '2.7B']) else 'cpu' # larger doesn't fit on my gpu
+    else:
+        device = args.device
 
     # assemble model name
     model_name = args.model
     if args.model_size is not None:
         model_name += '-' + args.model_size
+    else:
+        args.model_size = 'None' # for path creation/saving
 
     # Trying to load model, tokenizer and config
-    try:
-        logging.info(f'Loading model {model_name}')
-
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        model = AutoModelForCausalLM.from_pretrained(model_name)
-        config = AutoConfig.from_pretrained(model_name)
-
-    except (RepositoryNotFoundError, OSError) as error:
-        logging.warning("Couldn't find model in default folder. Trying EleutherAI/...")
-
-        tokenizer = AutoTokenizer.from_pretrained(f'EleutherAI/{model_name}')
-        model = AutoModelForCausalLM.from_pretrained(f'EleutherAI/{model_name}')
-        config = AutoConfig.from_pretrained(f'EleutherAI/{model_name}')
+    model, tokenizer, config = tutil.load(model_name, args.model_dir)
     model.to(device)
     model.eval()
     # wrap model for hooking access
@@ -49,19 +42,16 @@ def main(args):
     with open(args.text_file, "r") as f:
         data = json.load(f)
     prompts = data['prompts']
-    corrects = data['correct']
     entities = data['entity']
     
     # run experiments
     all_results = dict()
     for i in range(len(prompts)):
         base_text = prompts[i]
-        correct_output_text = corrects[i]
         entity = entities[i]
 
-        results = eval_model(model, tokenizer, base_text, entity, correct_output_text, num_layers)
+        results = eval_model(model, tokenizer, base_text, entity, num_layers, args.embedding_name, args.mlp_name, args.attn_name, args.trafo_name)
         results['prompt'] = base_text
-        results['correct'] = correct_output_text
         results['entity'] = entity
         all_results[i] = results
 
@@ -71,9 +61,22 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    
+    # model args
     parser.add_argument('--model', default='gpt2')
     parser.add_argument('--model_size', type=str, help='Model size, e.g. large or xl for gpt2 or 125M for gpt-neo', default=None)
+    parser.add_argument('--model_dir', default=None, help='HF directory in which to look for the specified model, e.g. EleutherAI')
+    
+    # these args need to be changed from default when using non-GPT based models
+    parser.add_argument('--trafo_name', default='h', help='name of the transformer layers in the model')
+    parser.add_argument('--embedding_name', default='wte', help='name of the embedding layer in the model')
+    parser.add_argument('--mlp_name', default='mlp', help='name of the MLP layers in the model')
+    parser.add_argument('--attn_name', default='attn', help='name of the Attentino layers in the model')
+
+    # Misc
     parser.add_argument('--text_file', default='prompts.json', help='File that contains the data')
+    parser.add_argument('--device', default=None)
+
 
     args = parser.parse_args()
     
