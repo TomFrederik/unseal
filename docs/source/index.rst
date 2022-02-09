@@ -8,9 +8,17 @@ Welcome to Unseal's documentation!
 ==================================
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :maxdepth: 1
+   :caption: Tutorials and Guides
 
+   tutorials/getting_started
+
+.. toctree::
+   :maxdepth: 1
+   :caption: API Reference
+
+   unseal.hooks
+   
 
 
 Indices and tables
