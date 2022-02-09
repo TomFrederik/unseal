@@ -6,7 +6,7 @@ version = "0.0.1"
 setup(
     name='Unseal',
     version=version,
-    packages=find_packages(include=['unseal', 'unseal.hooks']),
+    packages=find_packages(exclude=[]),
     python_requires='>=3.9.0',
     install_requires=[
         'torch>=1.10.1',
