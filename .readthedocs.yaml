@@ -1,0 +1,21 @@
+# .readthedocs.yaml
+# Read the Docs configuration file
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+
+# Required
+version: 2
+
+# Required for RTD to use 3.9
+build:
+  image: testing
+
+# Set python version
+python:
+  version: 3.9
+  install:
+    - method: setuptools
+      path: .
+
+# Build documentation in the docs/ directory with Sphinx
+sphinx:
+   configuration: docs/source/conf.py
