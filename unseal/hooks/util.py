@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Iterable, Tuple
+from typing import Iterable, Tuple, Union
 
 import numpy as np
 import torch
@@ -21,7 +21,14 @@ def recursive_module_dict(model: nn.Module) -> OrderedDict:
     
     return subdict
 
-def create_slice(indices, target_shape=None):
+def create_slice(indices: str) -> slice:
+    """Creates a slice object from a string representing the slice.
+
+    :param indices: String representing the slice, e.g. `...,3:5,:`
+    :type indices: str
+    :return: Slice object corresponding to the input indices.
+    :rtype: slice
+    """
     if target_shape is not None:
         trailing = len(target_shape) * ",:"
     else:
@@ -30,7 +37,20 @@ def create_slice(indices, target_shape=None):
     return slice_
 
 
-def recursive_to_device(iterable, device):
+def recursive_to_device(
+    iterable: Iterable, 
+    device: Union[str, torch.device],
+) -> Iterable:
+    """Recursively puts an Iterable of (Iterable of (...)) tensors on the given device
+
+    :param iterable: Iterable of tensors or iterables of ...
+    :type iterable: Iterable
+    :param device: Device on which to put the object
+    :type device: Union[str, torch.device]
+    :raises TypeError: Unexpected tyes
+    :return: Nested iterable with the tensors on the new device
+    :rtype: Iterable
+    """
     new = []
     for i, item in enumerate(iterable):
         if isinstance(item, torch.Tensor):

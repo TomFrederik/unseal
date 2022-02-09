@@ -1,11 +1,33 @@
 import logging
 import os
+from typing import Optional
 
 from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM
 from transformers.file_utils import RepositoryNotFoundError
 
 
-def load(model_name, model_dir=None, load_model=True, load_tokenizer=True, load_config=True):
+def load_from_pretrained(
+    model_name: str, 
+    model_dir: Optional[str] = None, 
+    load_model: Optional[bool] = True, 
+    load_tokenizer: Optional[bool] = True, 
+    load_config: Optional[bool] = True,
+) -> Tuple[AutoModelForCausalLM, AutoTokenizer, AutoConfig]:
+    """Load a pretrained model from huggingface's transformer library
+
+    :param model_name: Name of the model, e.g. `gpt2` or `gpt-neo`.
+    :type model_name: str
+    :param model_dir: Directory in which to look for the model, e.g. `EleutherAI`, defaults to None
+    :type model_dir: Optional[str], optional
+    :param load_model: Whether to load the model itself, defaults to True
+    :type load_model: Optional[bool], optional
+    :param load_tokenizer: Whether to load the tokenizer, defaults to True
+    :type load_tokenizer: Optional[bool], optional
+    :param load_config: Whether to load the config file, defaults to True
+    :type load_config: Optional[bool], optional
+    :return: model, tokenizer, config. Returns None values for those elements which were not loaded.
+    :rtype: Tuple[AutoModelForCausalLM, AutoTokenizer, AutoConfig]
+    """
     if model_dir is None:
         try:
             logging.info(f'Loading model {model_name}')
