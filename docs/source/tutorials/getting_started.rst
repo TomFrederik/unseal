@@ -6,7 +6,7 @@ Getting started
 Prerequisites
 -------------
 
-Unseal requires python 3.6+.
+Unseal requires python 3.9+.
 
 
 Installation
