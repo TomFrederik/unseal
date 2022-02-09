@@ -1,5 +1,5 @@
 # pre-implemented common hooks
-from typing import Iterable
+from typing import Iterable, Callable
 
 import torch
 
