@@ -1,8 +1,11 @@
 from setuptools import setup, find_packages
 
+version = "0.0.1"
+
+
 setup(
     name='Unseal',
-    version='0.0.1',
+    version=version,
     packages=find_packages(include=['unseal', 'unseal.*']),
     python_requires='>3.9.0',
     install_requires=[
