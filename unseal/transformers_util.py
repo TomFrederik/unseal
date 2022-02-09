@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Optional
+from typing import Optional, Tuple
 
 from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM
 from transformers.file_utils import RepositoryNotFoundError
