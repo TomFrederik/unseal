@@ -6,7 +6,7 @@ setup(
     packages=find_packages(include=['unseal', 'unseal.*']),
     python_requires='>3.9.0',
     install_requires=[
-        'pytorch>=1.10.0',
+        'torch>=1.10.1',
         'einops>=0.3.2',
         'numpy>=1.21.2',
         'transformers>=4.16.0',
