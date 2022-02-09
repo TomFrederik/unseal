@@ -62,14 +62,6 @@ class HookedModel(torch.nn.Module):
         **kwargs,
     ):
         """Wrapper around the default forward pass that temporarily registers hooks, executes the forward pass and then closes hooks again.
-
-        :param tokens: [description]
-        :type tokens: torch.Tensor
-        :param hooks: [description]
-        :type hooks: List[Hook]
-        :raises ValueError: [description]
-        :return: [description]
-        :rtype: [type]
         """
         # register hooks
         registered_hooks = []
@@ -81,7 +73,7 @@ class HookedModel(torch.nn.Module):
             registered_hooks.append(layer.register_forward_hook(self._hook_wrapper(hook.func, hook.key)))
 
         # forward
-        output = self.model(input_ids=input_ids, *args, **kwargs)
+        output = self.model(input_ids=input_ids, *args, **kwargs) #TODO generalize to non-HF models which would not have an input_ids kwarg
 
         # remove hooks
         for hook in registered_hooks:
@@ -103,3 +95,6 @@ class HookedModel(torch.nn.Module):
 
     def get_ctx_keys(self):
         return list(self.save_ctx.keys())
+
+    def __repr__(self):
+        return self.structure['module'].__repr__()
