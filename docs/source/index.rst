@@ -17,6 +17,7 @@ Welcome to Unseal's documentation!
    :maxdepth: 1
    :caption: API Reference
 
+   unseal.transformer_util
    unseal.hooks
    
 

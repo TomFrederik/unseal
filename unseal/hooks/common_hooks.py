@@ -25,8 +25,8 @@ def replace_activation(indices: str, replacement_tensor: torch.Tensor) -> Callab
     """Creates a hook which replaces a module's activation (output) with a replacement tensor. 
     If there is a dimension mismatch, the replacement tensor is copied along the leading dimensions of the output.
 
-    Example: If the activation has shape (B, T, D) and replacement tensor has shape (D,) which you want to plug in
-    at position t in the T dimension for every tensor in the batch, then indices should be ":,t,:". 
+    Example: If the activation has shape ``(B, T, D)`` and replacement tensor has shape ``(D,)`` which you want to plug in
+    at position t in the T dimension for every tensor in the batch, then indices should be ``:,t,:``. 
 
     :param indices: Indices at which to insert the replacement tensor
     :type indices: str

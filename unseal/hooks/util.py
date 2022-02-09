@@ -24,7 +24,7 @@ def recursive_module_dict(model: nn.Module) -> OrderedDict:
 def create_slice(indices: str) -> slice:
     """Creates a slice object from a string representing the slice.
 
-    :param indices: String representing the slice, e.g. `...,3:5,:`
+    :param indices: String representing the slice, e.g. ``...,3:5,:``
     :type indices: str
     :return: Slice object corresponding to the input indices.
     :rtype: slice

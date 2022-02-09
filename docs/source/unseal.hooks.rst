@@ -4,6 +4,15 @@ unseal.hooks package
 This package handles the nitty-gritty of hooking to a model.
 
 
+hooks module
+-------------------------------
+
+.. automodule:: unseal.hooks
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
 hooks.common_hooks module
 -------------------------------
 
