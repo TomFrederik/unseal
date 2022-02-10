@@ -1,4 +1,4 @@
-from collections import OrderedDict, namedtuple
+from collections import OrderedDict
 from typing import Optional, List
 
 import torch
@@ -6,8 +6,8 @@ import torch
 from . import common_hooks
 from . import util
 from . import rome_hooks
+from .commons import Hook
 
-Hook = namedtuple('Hook', 'layer_name func key')
 
 class HookedModel(torch.nn.Module):
     def __init__(self, model):

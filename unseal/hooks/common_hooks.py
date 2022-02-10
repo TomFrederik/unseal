@@ -1,9 +1,10 @@
 # pre-implemented common hooks
-from typing import Iterable, Callable
+from typing import Iterable, Callable, Optional, Union
 
 import torch
 
 from . import util
+from .commons import Hook
 
 def save_output(save_ctx: dict, input: torch.Tensor, output: torch.Tensor):
     """Basic hooking function for saving the output of a module to the global context object
@@ -45,3 +46,20 @@ def replace_activation(indices: str, replacement_tensor: torch.Tensor) -> Callab
         return output
 
     return func
+
+def transformers_get_attention(heads: Optional[Union[int, Iterable[int], str]] = None) -> Callable:
+    
+    # convert string to slice
+    if heads is None:
+        heads = ":"
+    if isinstance(heads, str):
+        heads = util.create_slice(heads)
+
+    def func(save_ctx, input, output):
+        save_ctx['attn'] = output[2][:,heads,...].detach().cpu()
+    
+    return func
+
+def gpt_get_attention_hook(layer: int, key: str, heads: Optional[Union[int, Iterable[int], str]] = None) -> Callable:
+    func = transformers_get_attention(heads)
+    return Hook(f'transformer->h->{layer}->attn', func, key)

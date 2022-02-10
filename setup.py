@@ -15,5 +15,6 @@ setup(
         'transformers>=4.16.0',
         'tqdm',
         'matplotlib',
+        'streamlit',
     ],
 )

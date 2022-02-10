@@ -29,12 +29,7 @@ def create_slice(indices: str) -> slice:
     :return: Slice object corresponding to the input indices.
     :rtype: slice
     """
-    if target_shape is not None:
-        trailing = len(target_shape) * ",:"
-    else:
-        trailing = ""
-    slice_ = eval(f'np.s_[...,{indices}{trailing}]')
-    return slice_
+    return eval(f'np.s_[{indices}]')
 
 
 def recursive_to_device(
@@ -53,7 +48,7 @@ def recursive_to_device(
     """
     if isinstance(iterable, torch.Tensor):
         return iterable.to(device)
-        
+
     new = []
     for i, item in enumerate(iterable):
         if isinstance(item, torch.Tensor):
