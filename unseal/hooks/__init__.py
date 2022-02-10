@@ -73,7 +73,7 @@ class HookedModel(torch.nn.Module):
             registered_hooks.append(layer.register_forward_hook(self._hook_wrapper(hook.func, hook.key)))
 
         # forward
-        output = self.model(input_ids=input_ids, *args, **kwargs) #TODO generalize to non-HF models which would not have an input_ids kwarg
+        output = self.model(input_ids, *args, **kwargs) #TODO generalize to non-HF models which would not have an input_ids kwarg
 
         # remove hooks
         for hook in registered_hooks:
@@ -91,7 +91,7 @@ class HookedModel(torch.nn.Module):
         :return: [description]
         :rtype: [type]
         """
-        return lambda model, input, output: func(save_ctx=self.save_ctx[hook_key], input=input, output=output)
+        return lambda model, input, output: func(save_ctx=self.save_ctx[hook_key], input=input[0], output=output)
 
     def get_ctx_keys(self):
         return list(self.save_ctx.keys())

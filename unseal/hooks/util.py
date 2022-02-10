@@ -38,19 +38,22 @@ def create_slice(indices: str) -> slice:
 
 
 def recursive_to_device(
-    iterable: Iterable, 
+    iterable: Union[Iterable, torch.Tensor], 
     device: Union[str, torch.device],
 ) -> Iterable:
     """Recursively puts an Iterable of (Iterable of (...)) tensors on the given device
 
-    :param iterable: Iterable of tensors or iterables of ...
-    :type iterable: Iterable
+    :param iterable: Tensor or Iterable of tensors or iterables of ...
+    :type iterable: Tensor or Iterable
     :param device: Device on which to put the object
     :type device: Union[str, torch.device]
     :raises TypeError: Unexpected tyes
     :return: Nested iterable with the tensors on the new device
     :rtype: Iterable
     """
+    if isinstance(iterable, torch.Tensor):
+        return iterable.to(device)
+        
     new = []
     for i, item in enumerate(iterable):
         if isinstance(item, torch.Tensor):
