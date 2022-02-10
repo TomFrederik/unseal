@@ -84,7 +84,7 @@ be recalled via ``model.save_ctx[your_hook_key]``
 
 
 Writing hooks
------------------
+===============
 
 As mentioned above, hooks are triples ``(layer_name, func, key)``. After choosing the attachment point (the ``layer_name``, an element from ``model.layers.keys()``), 
 you need to implement the hooking function. 
@@ -95,7 +95,7 @@ Every hooking function needs to follow the signature ``save_ctx, input, output -
 during the forward pass. ``input`` and ``output`` are the input and output of the module respectively. If the hook is not modifying the output, the function does
 not need to return anything, as that is the default behavior.
 
-For example, let's implement a hook which saves the input and output to first linear layer in the network we defined above:
+For example, let's implement a hook which saves the input and output of the first linear layer in the network we defined above:
 
 
 .. code-block:: python
@@ -103,14 +103,19 @@ For example, let's implement a hook which saves the input and output to first li
     import torch
     from unseal import Hook
 
-    # make sure to not clutter the gpu and not keep track of gradients.
+    # define the hooking function
     def save_input_output(save_ctx, input, output):
+        # make sure to not clutter the gpu and not keep track of gradients.
         save_ctx['input'] = input.detach().cpu()
         save_ctx['output'] = output.detach().cpu()
     
-    input_tensor = torch.rand((1,8))
+    # create Hook object
     my_hook = Hook('0', func, 'save_input_output_0')
     
+    # create random input tensor
+    input_tensor = torch.rand((1,8))
+
+    # forward pass with our new hook
     model.forward(input_tensor, hooks=[my_hook])
 
     # now we can access the model's context object
