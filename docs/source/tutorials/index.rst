@@ -3,6 +3,9 @@
 Tutorials and Guides
 ====================
 
-.. contents:: Contents
+.. toctree::
+   :maxdepth: 1
+   :caption: Tutorials and Guides
 
-
+   tutorials/getting_started
+   tutorials/hooking

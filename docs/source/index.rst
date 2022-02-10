@@ -12,6 +12,7 @@ Welcome to Unseal's documentation!
    :caption: Tutorials and Guides
 
    tutorials/getting_started
+   tutorials/hooking
 
 .. toctree::
    :maxdepth: 1
