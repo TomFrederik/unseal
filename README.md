@@ -4,7 +4,17 @@
 
 After cloning the repository, install via pip:
 
-`pip install -e .`
+```sh
+pip install -e .
+```
+
+You will also need to install PySvelte. Unseal uses [this fork](https://github.com/TomFrederik/pysvelte), which can likewise be installed via
+
+```sh
+pip install -e .
+```
+
+after cloning the repository.
 
 ## Usage
 
