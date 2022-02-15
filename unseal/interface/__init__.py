@@ -5,7 +5,10 @@ HF_MODELS = [
     'gpt2', 
     'gpt2-medium', 
     'gpt2-large', 
-    'gpt2-xl'
+    'gpt2-xl',
+    'gpt-neo-125M',
+    'gpt-neo-1.3B',
+    'gpt-neo-2.7B',
 ]
 
 SESSION_STATE_VARIABLES = [

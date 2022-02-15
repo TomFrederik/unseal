@@ -1,7 +1,6 @@
 import einops
 import pysvelte as ps
 import streamlit as st
-import torch
 
 from unseal.hooks import Hook
 from unseal.hooks.common_hooks import gpt_get_attention_hook
@@ -21,47 +20,36 @@ def text_change():
     if text is None or len(text) == 0:
         return
     if st.session_state.model_name.endswith('grokking'):
-        tokenized_text = text.split(' ')
-        tokenized_text[1] = st.session_state.model.model.hparams.num_tokens - 2
-        tokenized_text[3] = st.session_state.model.model.hparams.num_tokens - 1
-        model_input = torch.Tensor([int(t) for t in tokenized_text])[None].to(st.session_state.device).long()
-        def func(save_ctx, input, output):
-            save_ctx['attn'] = output[1].detach().cpu()
-        hook = Hook(f"transformer->{st.session_state.layer}->self_attn", func, 'my_hook')
-        st.session_state.model.forward(model_input, hooks=[hook])
-        attn = st.session_state.model.save_ctx['my_hook']['attn']
-        tokenized_text = [str(t) for t in tokenized_text]
-        attn = einops.rearrange(attn[0], 'h n1 n2 -> n1 n2 h') 
+        raise NotImplementedError
     else:
         tokenized_text = st.session_state.tokenizer.tokenize(text)
         tokenized_text = [token.replace("Ġ", " ") for token in tokenized_text]
         tokenized_text = [token.replace("Ċ", "\n") for token in tokenized_text]
         model_input = st.session_state.tokenizer.encode(text, return_tensors='pt').to(st.session_state.device)
 
-        hook = gpt_get_attention_hook(st.session_state.layer, 'my_hook')
-        st.session_state.model.forward(model_input, hooks=[hook], output_attentions=True)
-        attn = st.session_state.model.save_ctx['my_hook']['attn']
-        attn = einops.rearrange(attn[0], 'h n1 n2 -> n1 n2 h')
-        
+        layer_hooks = [gpt_get_attention_hook(i, f'layer_{i}') for i in range(st.session_state.num_layers)]
+        st.session_state.model.forward(model_input, hooks=layer_hooks, output_attentions=True)
+        layer_attentions = [st.session_state.model.save_ctx[f'layer_{i}']['attn'] for i in range(st.session_state.num_layers)]
+        layer_attentions = [einops.rearrange(attn[0], 'h n1 n2 -> n1 n2 h') for attn in layer_attentions]
     
-    html_object = ps.AttentionMulti(tokens=tokenized_text, attention=attn, head_labels=[f'{st.session_state.layer}:{i}' for i in range(attn.shape[-1])])
-    html_object = html_object.update_meta(suppress_title=True)
-    html_str = html_object.html_page_str()
-    st.components.v1.html(html_str, height=1200)
+    for i, attn in enumerate(layer_attentions):
+        html_object = ps.AttentionMulti(tokens=tokenized_text, attention=attn, head_labels=[f'{i}:{j}' for j in range(attn.shape[-1])])
+        html_object = html_object.update_meta(suppress_title=True)
+        html_str = html_object.html_page_str()
+        with st.expander(f'Layer {i}'):
+            st.components.v1.html(html_str, height=600)
 
 # perform startup tasks
 utils.startup(SESSION_STATE_VARIABLES, './registered_models.json')
 
 with st.sidebar:
     st.checkbox('Show only local models', value=False, key='local_only')
-
     if not st.session_state.local_only:
         model_names = st.session_state.registered_model_names + HF_MODELS
     else:
         model_names = st.session_state.registered_model_names
     
     with st.form('model_config'):
-        submitted = st.form_submit_button("Save config")
         
         st.write('## Model Config')
 
@@ -69,6 +57,7 @@ with st.sidebar:
             model_options = list()
         else:
             model_options = model_names
+
         st.selectbox(
             'Model', 
             options=model_options,
@@ -86,15 +75,10 @@ with st.sidebar:
         st.text_area(label='Prefix Prompt', key='prefix_prompt', value='')
         st.text_area(label='Suffix Prompt', key='suffix_prompt', value='')
             
+        submitted = st.form_submit_button("Save config")
         if submitted:
             st.session_state.model, st.session_state.tokenizer, st.session_state.config = utils.on_config_submit(st.session_state.model_name)
             st.write('Config saved!')
-
-    if st.session_state.num_layers is None:
-        options = list()
-    else:
-        options = list(range(st.session_state.num_layers))
-    st.selectbox('Layer', options=options, key='layer', on_change=layer_change, index=0)
 
     input_text = st.text_area(label='Input', on_change=text_change, key='input_text', value="")
 
