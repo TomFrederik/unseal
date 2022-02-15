@@ -21,32 +21,23 @@ def text_change():
     if text is None or len(text) == 0:
         return
     if st.session_state.model_name.endswith('grokking'):
-        tokenized_text = text.split(' ')
-        tokenized_text[1] = st.session_state.model.model.hparams.num_tokens - 2
-        tokenized_text[3] = st.session_state.model.model.hparams.num_tokens - 1
-        model_input = torch.Tensor([int(t) for t in tokenized_text])[None].to(st.session_state.device).long()
-        def func(save_ctx, input, output):
-            save_ctx['attn'] = output[1].detach().cpu()
-        hook = Hook(f"transformer->{st.session_state.layer}->self_attn", func, 'my_hook')
-        st.session_state.model.forward(model_input, hooks=[hook])
-        attn = st.session_state.model.save_ctx['my_hook']['attn']
-        tokenized_text = [str(t) for t in tokenized_text]
-        attn = einops.rearrange(attn[0], 'h n1 n2 -> n1 n2 h') 
+        raise NotImplementedError
     else:
         tokenized_text = st.session_state.tokenizer.tokenize(text)
         tokenized_text = [token.replace("Ġ", " ") for token in tokenized_text]
         tokenized_text = [token.replace("Ċ", "\n") for token in tokenized_text]
         model_input = st.session_state.tokenizer.encode(text, return_tensors='pt').to(st.session_state.device)
 
-        hook = gpt_get_attention_hook(st.session_state.layer, 'my_hook')
-        st.session_state.model.forward(model_input, hooks=[hook], output_attentions=True)
-        attn = st.session_state.model.save_ctx['my_hook']['attn']
-        attn = einops.rearrange(attn[0], 'h n1 n2 -> n1 n2 h')
-        
+        layer_hooks = [gpt_get_attention_hook(i, f'layer_{i}') for i in range(st.session_state.num_layers)]
+        st.session_state.model.forward(model_input, hooks=layer_hooks, output_attentions=True)
+        layer_attentions = [st.session_state.model.save_ctx[f'layer_{i}']['attn'] for i in range(st.session_state.num_layers)]
+        layer_attentions = [einops.rearrange(attn[0], 'h n1 n2 -> n1 n2 h') for attn in layer_attentions]
     
-    html_object = ps.AttentionMulti(tokens=tokenized_text, attention=attn, head_labels=[f'{st.session_state.layer}:{i}' for i in range(attn.shape[-1])])
-    html_str = html_object.html_page_str()
-    st.components.v1.html(html_str, height=1200)
+    for i, attn in enumerate(layer_attentions):
+        html_object = ps.AttentionMulti(tokens=tokenized_text, attention=attn, head_labels=[f'{i}:{j}' for j in range(attn.shape[-1])])
+        html_str = html_object.html_page_str()
+        with st.expander(f'Layer {i}'):
+            st.components.v1.html(html_str, height=600)
 
 # perform startup tasks
 utils.startup(SESSION_STATE_VARIABLES, './registered_models.json')
@@ -88,12 +79,6 @@ with st.sidebar:
         if submitted:
             st.session_state.model, st.session_state.tokenizer, st.session_state.config = utils.on_config_submit(st.session_state.model_name)
             st.write('Config saved!')
-
-    if st.session_state.num_layers is None:
-        options = list()
-    else:
-        options = list(range(st.session_state.num_layers))
-    st.selectbox('Layer', options=options, key='layer', on_change=layer_change, index=0)
 
     input_text = st.text_area(label='Input', on_change=text_change, key='input_text', value="")
 
