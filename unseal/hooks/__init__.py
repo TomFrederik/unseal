@@ -98,3 +98,7 @@ class HookedModel(torch.nn.Module):
 
     def __repr__(self):
         return self.structure['module'].__repr__()
+    
+    @property
+    def device(self):
+        return next(self.model.parameters()).device
