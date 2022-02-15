@@ -1,3 +1,5 @@
+# utility functions for interacting with huggingface's transformers library
+
 import logging
 import os
 from typing import Optional, Tuple
@@ -5,6 +7,7 @@ from typing import Optional, Tuple
 from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM
 from transformers.file_utils import RepositoryNotFoundError
 
+from .hooks import HookedModel
 
 def load_from_pretrained(
     model_name: str, 
@@ -49,3 +52,13 @@ def load_from_pretrained(
         config = AutoConfig.from_pretrained(os.path.join(model_dir, model_name)) if load_config else None
 
     return model, tokenizer, config
+
+def get_num_layers(model: HookedModel) -> int:
+    """Get the number of layers in a model
+
+    :param model: The model to get the number of layers from
+    :type model: HookedModel
+    :return: The number of layers in the model
+    :rtype: int
+    """
+    return len(model.structure['children']['transformer']['children']['h']['children'])
