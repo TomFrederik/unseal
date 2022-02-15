@@ -1,0 +1,7 @@
+{
+    "post-grokking":{
+        "checkpoint":"./post-grokking.ckpt",
+        "constructor":"model.GrokkingTransformer",
+        "tokenizer":"model.tokenizer"
+    }
+}
