@@ -17,4 +17,9 @@ setup(
         'matplotlib',
         'streamlit',
     ],
+    # entry_points={
+    #     'display_attn': [
+    #         'display_attn = unseal.interface'
+    #     ]
+    # },
 )
