@@ -78,6 +78,7 @@ def load_registered_models(model_file_path: str = './registered_models.json') ->
             st.session_state.registered_models = json.load(f)
     except FileNotFoundError():
         st.warning(f"Did not find a 'registered_models.json'. Only showing HF models")
+        st.session_state.registered_models = dict()
     st.session_state.registered_model_names = list(st.session_state.registered_models.keys())
 
 def startup(variables: List[str], mode_file_path: Optional[str] = './registered_models.json') -> None:
@@ -88,6 +89,9 @@ def startup(variables: List[str], mode_file_path: Optional[str] = './registered_
     :param model_file_path: Path to the file containing the registered models.
     :type model_file_path: Optional[str]
     """
+    # set wide layout
+    st.set_page_config(layout="wide")
+    
     # initialize session state variables
     init_session_state(variables)
 
