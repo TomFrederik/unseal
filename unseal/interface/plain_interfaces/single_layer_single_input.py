@@ -45,6 +45,7 @@ def text_change():
         
     
     html_object = ps.AttentionMulti(tokens=tokenized_text, attention=attn, head_labels=[f'{st.session_state.layer}:{i}' for i in range(attn.shape[-1])])
+    html_object.update_meta(suppress_title=True)
     html_str = html_object.html_page_str()
     st.components.v1.html(html_str, height=1200)
 

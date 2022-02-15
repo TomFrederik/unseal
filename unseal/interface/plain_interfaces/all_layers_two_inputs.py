@@ -1,7 +1,6 @@
 import einops
 import pysvelte as ps
 import streamlit as st
-import torch
 
 from unseal.hooks import Hook
 from unseal.hooks.common_hooks import gpt_get_attention_hook
@@ -37,6 +36,7 @@ def text_change():
             
             for i, attn in enumerate(layer_attentions):
                 html_object = ps.AttentionMulti(tokens=tokenized_text, attention=attn, head_labels=[f'{i}:{j}' for j in range(attn.shape[-1])])
+                html_object.update_meta(suppress_title=True)
                 html_str = html_object.html_page_str()
                 with st.expander(f'Layer {i}'):
                     st.components.v1.html(html_str, height=600)
