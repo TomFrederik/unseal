@@ -44,14 +44,12 @@ utils.startup(SESSION_STATE_VARIABLES, './registered_models.json')
 
 with st.sidebar:
     st.checkbox('Show only local models', value=False, key='local_only')
-
     if not st.session_state.local_only:
         model_names = st.session_state.registered_model_names + HF_MODELS
     else:
         model_names = st.session_state.registered_model_names
     
     with st.form('model_config'):
-        submitted = st.form_submit_button("Save config")
         
         st.write('## Model Config')
 
@@ -59,6 +57,7 @@ with st.sidebar:
             model_options = list()
         else:
             model_options = model_names
+
         st.selectbox(
             'Model', 
             options=model_options,
@@ -76,6 +75,7 @@ with st.sidebar:
         st.text_area(label='Prefix Prompt', key='prefix_prompt', value='')
         st.text_area(label='Suffix Prompt', key='suffix_prompt', value='')
             
+        submitted = st.form_submit_button("Save config")
         if submitted:
             st.session_state.model, st.session_state.tokenizer, st.session_state.config = utils.on_config_submit(st.session_state.model_name)
             st.write('Config saved!')

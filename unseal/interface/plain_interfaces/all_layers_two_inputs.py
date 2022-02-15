@@ -11,7 +11,7 @@ def layer_change():
     text_change()
 
 def text_change():
-    cols = st.columns([6,6])
+    cols = st.columns(2)
     
     for k, text in enumerate([st.session_state.input_text_1, st.session_state.input_text_2]):
         with cols[k]:
@@ -47,7 +47,6 @@ utils.startup(SESSION_STATE_VARIABLES, './registered_models.json')
 
 with st.sidebar:
     st.checkbox('Show only local models', value=False, key='local_only')
-
     if not st.session_state.local_only:
         model_names = st.session_state.registered_model_names + HF_MODELS
     else:
@@ -62,6 +61,7 @@ with st.sidebar:
             model_options = list()
         else:
             model_options = model_names
+        
         st.selectbox(
             'Model', 
             options=model_options,

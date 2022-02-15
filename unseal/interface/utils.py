@@ -36,6 +36,7 @@ def on_config_submit(model_name: str) -> Tuple:
     model.to(st.session_state.device).eval()
     
     st.session_state.num_layers = get_num_layers(model)
+    print(st.session_state.num_layers)
 
     return model, tokenizer, config
 
