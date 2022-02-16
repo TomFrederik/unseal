@@ -77,7 +77,7 @@ def load_registered_models(model_file_path: str = './registered_models.json') ->
     try:
         with open(model_file_path, 'r') as f:
             st.session_state.registered_models = json.load(f)
-    except FileNotFoundError():
+    except FileNotFoundError:
         st.warning(f"Did not find a 'registered_models.json'. Only showing HF models")
         st.session_state.registered_models = dict()
     st.session_state.registered_model_names = list(st.session_state.registered_models.keys())
