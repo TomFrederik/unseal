@@ -1,10 +1,12 @@
 # pre-implemented common hooks
-from typing import Iterable, Callable, Optional, Union
+from typing import Iterable, Callable, Optional, Union, List
+from matplotlib.pyplot import isinteractive
 
+import numpy as np
 import torch
 
 from . import util
-from .commons import Hook
+from .commons import Hook, HookedModel
 
 def save_output(save_ctx: dict, input: torch.Tensor, output: torch.Tensor):
     """Basic hooking function for saving the output of a module to the global context object
@@ -63,3 +65,62 @@ def transformers_get_attention(heads: Optional[Union[int, Iterable[int], str]] =
 def gpt_get_attention_hook(layer: int, key: str, heads: Optional[Union[int, Iterable[int], str]] = None) -> Callable:
     func = transformers_get_attention(heads)
     return Hook(f'transformer->h->{layer}->attn', func, key)
+
+def logit_hook(
+    layer:int, 
+    model: HookedModel, 
+    target: Optional[Union[int, List[int]]] = None, 
+    position: Optional[Union[int, List[int]]] = None,
+    key: Optional[str] = None,
+) -> Hook:
+    """Create a hook that saves the logits of a layer's output.
+    Outputs are saved to save_ctx['{layer}_logits']['logits'].
+    
+    Currently only works with GPT like models, since it assumes the key of the embedding matrix and the structure of
+    these models.
+
+    :param layer: The number of the layer
+    :type layer: int
+    :param model: The model.
+    :type model: HookedModel
+    :param target: The target token(s) to extract logits for. Defaults to all tokens.
+    :type target: Union[int, List[int]]
+    :param position: The position for which to extract logits for. Defaults to all positions.
+    :type position: Union[int, List[int]]
+    :param key: The key of the hook. Defaults to {layer}_logits.
+    :type key: str
+    :return: The hook.
+    :rtype: Hook
+    """
+    
+    # generate slice
+    if target is None:
+        target = ":"
+    else:
+        if isinstance(target, int):
+            target = str(target)
+        else:
+            target = "[" + ",".join(str(t) for t in target) + "]"
+    if position is None:
+        position = ":"
+    else:
+        if isinstance(position, int):
+            position = str(position)
+        else:
+            position = "[" + ",".join(str(p) for p in position) + "]"
+    position_slice = util.create_slice(f":,{position},:")
+    target_slice = util.create_slice(f"{target},:")
+    
+    # load the relevant part of the vocab matrix
+    vocab_matrix = model.structure['children']['transformer']['children']['wte']['module'].weight[target_slice].T
+    def inner(save_ctx, input, output):
+        save_ctx['logits'] = torch.einsum('bij,jk->bik', output[0][position_slice], vocab_matrix).detach().cpu()
+    
+    # write key
+    if key is None:
+        key = str(layer) + '_logits'
+    
+    # create hook
+    hook = Hook(f'transformer->h->{layer}', inner, key)
+    
+    return hook
