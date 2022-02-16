@@ -18,8 +18,8 @@ setup(
         'streamlit',
     ],
     # entry_points={
-    #     'display_attn': [
-    #         'display_attn = unseal.interface'
+    #     'console_scripts': [
+    #         '"unseal compare" = unseal.commands.interfaces.compare_two_inputs:main',
     #     ]
     # },
 )
