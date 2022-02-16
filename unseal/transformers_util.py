@@ -7,7 +7,7 @@ from typing import Optional, Tuple
 from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM
 from transformers.file_utils import RepositoryNotFoundError
 
-from .hooks import HookedModel
+from hooks.commons import HookedModel
 
 def load_from_pretrained(
     model_name: str, 
@@ -62,3 +62,4 @@ def get_num_layers(model: HookedModel) -> int:
     :rtype: int
     """
     return len(model.structure['children']['transformer']['children']['h']['children'])
+
