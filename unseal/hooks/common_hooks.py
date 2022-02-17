@@ -1,8 +1,6 @@
 # pre-implemented common hooks
 from typing import Iterable, Callable, Optional, Union, List
-from matplotlib.pyplot import isinteractive
 
-import numpy as np
 import torch
 
 from . import util

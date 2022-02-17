@@ -1,14 +1,12 @@
-from typing import Optional
-
 import logging
+from typing import Optional
 
 import torch
 from transformers import AutoTokenizer
 
-from unseal import hooks
-from transformers_util import load_from_pretrained, get_num_layers
-from hooks.common_hooks import logit_hook
-from unseal.hooks.commons import HookedModel
+from .transformers_util import load_from_pretrained, get_num_layers
+from .hooks.common_hooks import logit_hook
+from .hooks.commons import HookedModel
 
 def generate_logit_lense(
     model: HookedModel, 
@@ -78,8 +76,8 @@ def generate_logit_lense(
     
     return logits, ranks, kl_div
 
-model, tokenizer, config = load_from_pretrained('gpt2-xl')
-model = hooks.HookedModel(model).to('cpu')
+# model, tokenizer, config = load_from_pretrained('gpt2-xl')
+# model = hooks.HookedModel(model).to('cpu')
 
-text = "After 1 comes 2. After 2 comes 3. After 3 comes 4."
-generate_logit_lense(model, tokenizer, text, ranks=True, kl_div=True)
+# text = "After 1 comes 2. After 2 comes 3. After 3 comes 4."
+# generate_logit_lense(model, tokenizer, text, ranks=True, kl_div=True)
