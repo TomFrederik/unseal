@@ -6,7 +6,7 @@ from typing import Optional, Tuple
 from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM
 from transformers.file_utils import RepositoryNotFoundError
 
-from hooks.commons import HookedModel
+from .hooks.commons import HookedModel
 
 def load_from_pretrained(
     model_name: str, 
