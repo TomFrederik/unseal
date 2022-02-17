@@ -1,6 +1,7 @@
 import einops
 import pysvelte as ps
 import streamlit as st
+import torch
 
 from unseal.hooks import Hook
 from unseal.hooks.common_hooks import gpt_get_attention_hook
@@ -69,9 +70,12 @@ with st.sidebar:
             index=0,
         )
 
+        devices = ['cpu']
+        if torch.cuda.is_available():
+            devices += ['cuda']
         st.selectbox(
             'Device',
-            options=['cpu', 'cuda'],
+            options=devices,
             index=0,
             key='device'
         )

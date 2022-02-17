@@ -26,10 +26,6 @@ def on_config_submit(model_name: str) -> Tuple:
     :return: Model, tokenizer, config
     :rtype: Tuple
     """
-    if not torch.cuda.is_available():
-        st.session_state.device = "cpu"
-    # else: leave it as the selected device, so either cpu or cuda
-
     # load model, hook it and put it on device and in eval mode
     model, tokenizer, config = load_model(model_name)
     model = HookedModel(model)
