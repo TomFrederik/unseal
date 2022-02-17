@@ -56,13 +56,14 @@ def generate_logit_lense(
     # compute ranks and kld
     # TODO, ranks seem off, not sure what's going on here.
     if ranks:
-        inverted_ranks = torch.argsort(logits, dim=-1, descending=True)
-        print(f"{inverted_ranks = }")
-        ranks = torch.argsort(inverted_ranks, dim=-1) + 1
-        print(f"{ranks = }")
-        ranks = ranks[:, torch.arange(1, len(targets)+1), targets]
-        print(f"{ranks[:,13] = }")
-        print(f"{ranks.shape = }")
+        raise NotImplementedError
+        # inverted_ranks = torch.argsort(logits, dim=-1, descending=True)
+        # print(f"{inverted_ranks = }")
+        # ranks = torch.argsort(inverted_ranks, dim=-1) + 1
+        # print(f"{ranks = }")
+        # ranks = ranks[:, torch.arange(1, len(targets)+1), targets]
+        # print(f"{ranks[:,13] = }")
+        # print(f"{ranks.shape = }")
     else:
         ranks = None
 
