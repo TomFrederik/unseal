@@ -1,6 +1,7 @@
 import einops
 import pysvelte as ps
 import streamlit as st
+import torch
 
 from unseal.hooks import Hook
 from unseal.hooks.common_hooks import gpt_get_attention_hook
