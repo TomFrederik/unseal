@@ -65,9 +65,12 @@ with st.sidebar:
             index=0,
         )
 
+        devices = ['cpu']
+        if torch.cuda.is_available():
+            devices += ['cuda']
         st.selectbox(
             'Device',
-            options=['cpu', 'cuda'],
+            options=devices,
             index=0,
             key='device'
         )
