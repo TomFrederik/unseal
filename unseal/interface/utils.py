@@ -106,7 +106,7 @@ def startup(variables: List[str], mode_file_path: Optional[str] = './registered_
 
     # load externally registered models
     load_registered_models(mode_file_path)
-
+    
 def sample_text(storage_key, label, key):
     text = st.session_state[key]
     if st.session_state.prefix_prompt is not None and len(st.session_state.prefix_prompt) > 0:
@@ -157,11 +157,29 @@ def text_change():
                 layer_attentions = [einops.rearrange(attn[0], 'h n1 n2 -> n1 n2 h') for attn in layer_attentions]
             
             for i, attn in enumerate(layer_attentions):
-                html_object = ps.AttentionMulti(tokens=tokenized_text, attention=attn, head_labels=[f'{i}:{j}' for j in range(attn.shape[-1])])
-                html_object = html_object.update_meta(suppress_title=True)
-                html_str = html_object.html_page_str()
+                ## compute the html objects
+                # attn
+                attn_html_object = ps.AttentionMulti(tokens=tokenized_text, attention=attn, head_labels=[f'{i}:{j}' for j in range(attn.shape[-1])])
+                attn_html_object = attn_html_object.update_meta(suppress_title=True)
+                attn_html = attn_html_object.html_page_str()
+                # logit
+                #TODO
+                logit_html = None
                 with st.expander(f'Layer {i}'):
-                    st.components.v1.html(html_str, height=600)
+                    st.selectbox(label='Display type', options=["Attention", "Logit Attribution"], key=f"layer_{i}_display_type", on_change=layer_display, args=(i, attn_html, logit_html))
+                    layer_display(i, attn_html, logit_html)
+
+def layer_display(layer, attn_html, logit_html):
+    new_type = st.session_state[f'layer_{layer}_display_type']
+    assert new_type in ["Attention", "Logit Attribution"]
+
+    if new_type == 'Attention':
+        html_str = attn_html
+    elif new_type == 'Logit Attribution':
+        html_str = logit_html
+    
+    with st.expander(f"Layer {layer}"):
+        st.components.v1.html(html_str, height=600)
 
 def create_model_config(model_names):
     with st.form('model_config'):
