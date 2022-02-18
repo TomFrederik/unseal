@@ -42,7 +42,7 @@ def generate_logit_lense(
         logging.warning("include_input is not implemented yet")
     
     # prepare model input
-    tokenized_sentence = tokenizer.encode(sentence, return_tensors='pt').to('cpu')
+    tokenized_sentence = tokenizer.encode(sentence, return_tensors='pt').to(model.device)
     targets = tokenizer.encode(sentence)[1:]
     
     # instantiate hooks
@@ -52,33 +52,22 @@ def generate_logit_lense(
     # run model
     model.forward(tokenized_sentence, hooks=logit_hooks)
     logits = torch.stack([model.save_ctx[str(layer) + '_logits']['logits'][0] for layer in range(num_layers)], dim=0)
-
+    
     # compute ranks and kld
-    # TODO, ranks seem off, not sure what's going on here.
     if ranks:
-        raise NotImplementedError
-        # inverted_ranks = torch.argsort(logits, dim=-1, descending=True)
-        # print(f"{inverted_ranks = }")
-        # ranks = torch.argsort(inverted_ranks, dim=-1) + 1
-        # print(f"{ranks = }")
-        # ranks = ranks[:, torch.arange(1, len(targets)+1), targets]
-        # print(f"{ranks[:,13] = }")
-        # print(f"{ranks.shape = }")
+        inverted_ranks = torch.argsort(logits, dim=-1, descending=True)
+        ranks = torch.argsort(inverted_ranks, dim=-1) + 1
+        ranks = ranks[:, torch.arange(len(targets)), targets]
     else:
         ranks = None
 
     if kl_div:
-        # compute kl_div between intermediate and final layers
         log_probs = torch.nn.LogSoftmax(dim=-1)(logits)
         kl_div_loss = torch.nn.KLDivLoss(reduction='none', log_target=True)
         kl_div = kl_div_loss(log_probs, log_probs[-1][None]).sum(dim=-1)
     else:
         kl_div = None    
     
-    return logits, ranks, kl_div
+    return logits[:,:-1], ranks, kl_div[:,:-1]
 
-# model, tokenizer, config = load_from_pretrained('gpt2-xl')
-# model = hooks.HookedModel(model).to('cpu')
 
-# text = "After 1 comes 2. After 2 comes 3. After 3 comes 4."
-# generate_logit_lense(model, tokenizer, text, ranks=True, kl_div=True)
