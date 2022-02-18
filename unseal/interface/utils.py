@@ -5,10 +5,12 @@ from typing import List, Tuple, Optional
 import einops
 import pysvelte as ps
 import streamlit as st
+import torch
 
-from unseal.hooks import HookedModel
-from unseal.hooks.common_hooks import gpt_get_attention_hook
-from unseal.transformers_util import load_from_pretrained, get_num_layers
+from ..hooks import HookedModel
+from ..hooks.common_hooks import gpt_get_attention_hook
+from ..transformers_util import load_from_pretrained, get_num_layers
+from .commons import HF_MODELS
 
 def init_session_state(variables: List[str]) -> None:
     """Initialize session state variables to None.
@@ -160,3 +162,48 @@ def text_change():
                 html_str = html_object.html_page_str()
                 with st.expander(f'Layer {i}'):
                     st.components.v1.html(html_str, height=600)
+
+def create_model_config(model_names):
+    with st.form('model_config'):
+        st.write('## Model Config')
+
+        if model_names is None:
+            model_options = list()
+        else:
+            model_options = model_names
+        
+        st.selectbox(
+            'Model', 
+            options=model_options,
+            key='model_name',
+            index=0,
+        )
+
+        devices = ['cpu']
+        if torch.cuda.is_available():
+            devices += ['cuda']
+        st.selectbox(
+            'Device',
+            options=devices,
+            index=0,
+            key='device'
+        )
+        
+        st.text_area(label='Prefix Prompt', key='prefix_prompt', value='')
+        # st.text_area(label='Suffix Prompt', key='suffix_prompt', value='')
+            
+        submitted = st.form_submit_button("Save model config")
+        if submitted:
+            st.session_state.model, st.session_state.tokenizer, st.session_state.config = on_config_submit(st.session_state.model_name)
+            st.write('Model config saved!')
+
+
+def create_sidebar():
+    st.checkbox('Show only local models', value=False, key='local_only')
+    
+    if not st.session_state.local_only:
+        model_names = st.session_state.registered_model_names + HF_MODELS
+    else:
+        model_names = st.session_state.registered_model_names
+    
+    create_model_config(model_names)
