@@ -1,6 +1,7 @@
 # pre-implemented common hooks
 from typing import Iterable, Callable, Optional, Union, List
 
+import einops
 import torch
 import torch.nn.functional as F
 
@@ -49,7 +50,6 @@ def replace_activation(indices: str, replacement_tensor: torch.Tensor) -> Callab
     return func
 
 def transformers_get_attention(heads: Optional[Union[int, Iterable[int], str]] = None) -> Callable:
-    
     # convert string to slice
     if heads is None:
         heads = ":"
@@ -61,9 +61,26 @@ def transformers_get_attention(heads: Optional[Union[int, Iterable[int], str]] =
     
     return func
 
+def transformers_get_head_logit_attr(
+    wte: torch.Tensor, 
+    heads: Optional[Union[int, Iterable[int], str]] = None, 
+) -> Callable:
+    wte = None
+    # convert string to slice
+    if heads is None:
+        heads = ":"
+    if isinstance(heads, str):
+        heads = util.create_slice(heads)
+
+    def func(save_ctx, input, output):
+        save_ctx['attn'] = output[0][:,heads,...].detach().cpu()
+    
+    return func
+
 def gpt_get_attention_hook(layer: int, key: str, heads: Optional[Union[int, Iterable[int], str]] = None) -> Callable:
     func = transformers_get_attention(heads)
     return Hook(f'transformer->h->{layer}->attn', func, key)
+
 
 def logit_hook(
     layer:int, 
@@ -71,6 +88,7 @@ def logit_hook(
     target: Optional[Union[int, List[int]]] = None, 
     position: Optional[Union[int, List[int]]] = None,
     key: Optional[str] = None,
+    split_heads: Optional[bool] = False,
 ) -> Hook:
     """Create a hook that saves the logits (technically the log-probabilities) of a layer's output.
     Outputs are saved to save_ctx['{layer}_logits']['logits'].
@@ -88,6 +106,8 @@ def logit_hook(
     :type position: Union[int, List[int]]
     :param key: The key of the hook. Defaults to {layer}_logits.
     :type key: str
+    :param split_heads: Whether to split the heads. Defaults to False.
+    :type split_heads: bool
     :return: The hook.
     :rtype: Hook
     """
@@ -112,8 +132,17 @@ def logit_hook(
     
     # load the relevant part of the vocab matrix
     vocab_matrix = model.structure['children']['transformer']['children']['wte']['module'].weight[target_slice].T
+    if split_heads:
+        vocab_matrix = einops.rearrange(vocab_matrix, '(num_heads head_dim) vocab_size -> num_heads head_dim vocab_size', head_dim=model.model.transformer.h[layer].attn.head_dim)
     def inner(save_ctx, input, output):
-        save_ctx['logits'] = F.log_softmax(torch.einsum('bij,jk->bik', output[0][position_slice], vocab_matrix), dim=-1).detach().cpu()
+        if split_heads:
+            einsum_in = einops.rearrange(output[0][position_slice], 'batch seq_len (heads head_dim) -> batch heads seq_len head_dim', head_dim=model.model.transformer.h[layer].attn.head_dim)
+            einsum_out = torch.einsum('bcij,cjk->bcik', einsum_in, vocab_matrix)
+        else:
+            einsum_in = output[0][position_slice]
+            einsum_out = torch.einsum('bij,jk->bik', einsum_in, vocab_matrix)
+            
+        save_ctx['logits'] = F.log_softmax(einsum_out, dim=-1).detach().cpu()
     
     # write key
     if key is None:
