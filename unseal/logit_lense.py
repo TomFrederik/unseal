@@ -1,10 +1,11 @@
 import logging
-from typing import Optional
+from typing import Optional, List
 
 import torch
+import torch.nn.functional as F
 from transformers import AutoTokenizer
 
-from .transformers_util import load_from_pretrained, get_num_layers
+from .transformers_util import get_num_layers
 from .hooks.common_hooks import logit_hook
 from .hooks.commons import HookedModel
 
@@ -12,6 +13,7 @@ def generate_logit_lense(
     model: HookedModel, 
     tokenizer: AutoTokenizer, 
     sentence: str,
+    layers: Optional[List[int]] = None,
     ranks: Optional[bool] = False,
     kl_div: Optional[bool] =False,
     include_input: Optional[bool] =False,
@@ -27,6 +29,8 @@ def generate_logit_lense(
     :type tokenizer: AutoTokenizer
     :param sentence: Sentence to be analyzed.
     :type sentence: str
+    :param layers: List of layers to be investigated.
+    :type layers: Optional[List[int]]
     :param ranks: Whether to return ranks of the correct token throughout layers, defaults to False
     :type ranks: Optional[bool], optional
     :param kl_div: Whether to return the KL divergence between intermediate probabilities and final output probabilities, defaults to False
@@ -47,7 +51,9 @@ def generate_logit_lense(
     
     # instantiate hooks
     num_layers = get_num_layers(model)
-    logit_hooks = [logit_hook(layer, model) for layer in range(num_layers)]
+    if layers is None:
+        layers = list(range(num_layers))
+    logit_hooks = [logit_hook(layer) for layer in layers]
     
     # run model
     model.forward(tokenized_sentence, hooks=logit_hooks)
@@ -62,9 +68,8 @@ def generate_logit_lense(
         ranks = None
 
     if kl_div:
-        log_probs = torch.nn.LogSoftmax(dim=-1)(logits)
-        kl_div_loss = torch.nn.KLDivLoss(reduction='none', log_target=True)
-        kl_div = kl_div_loss(log_probs, log_probs[-1][None]).sum(dim=-1)
+        log_probs = F.log_softmax(dim=-1)(logits)
+        kl_div = F.kl_div(log_probs, log_probs[-1][None], reduction='none', log_target=True).sum(dim=-1)
     else:
         kl_div = None    
     
