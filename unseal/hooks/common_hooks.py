@@ -2,6 +2,7 @@
 from typing import Iterable, Callable, Optional, Union, List
 
 import torch
+import torch.nn.functional as F
 
 from . import util
 from .commons import Hook, HookedModel
@@ -71,7 +72,7 @@ def logit_hook(
     position: Optional[Union[int, List[int]]] = None,
     key: Optional[str] = None,
 ) -> Hook:
-    """Create a hook that saves the logits of a layer's output.
+    """Create a hook that saves the logits (technically the log-probabilities) of a layer's output.
     Outputs are saved to save_ctx['{layer}_logits']['logits'].
     
     Currently only works with GPT like models, since it assumes the key of the embedding matrix and the structure of
@@ -112,7 +113,7 @@ def logit_hook(
     # load the relevant part of the vocab matrix
     vocab_matrix = model.structure['children']['transformer']['children']['wte']['module'].weight[target_slice].T
     def inner(save_ctx, input, output):
-        save_ctx['logits'] = torch.einsum('bij,jk->bik', output[0][position_slice], vocab_matrix).detach().cpu()
+        save_ctx['logits'] = F.log_softmax(torch.einsum('bij,jk->bik', output[0][position_slice], vocab_matrix), dim=-1).detach().cpu()
     
     # write key
     if key is None:

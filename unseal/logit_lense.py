@@ -67,9 +67,8 @@ def generate_logit_lense(
     else:
         ranks = None
 
-    if kl_div:
-        log_probs = F.log_softmax(dim=-1)(logits)
-        kl_div = F.kl_div(log_probs, log_probs[-1][None], reduction='none', log_target=True).sum(dim=-1)
+    if kl_div: # Note: logits are already normalized internally by the logit_hook
+        kl_div = F.kl_div(logits, logits[-1][None], reduction='none', log_target=True).sum(dim=-1)
     else:
         kl_div = None    
     
