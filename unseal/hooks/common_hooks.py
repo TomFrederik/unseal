@@ -4,7 +4,7 @@ from typing import Iterable, Callable, Optional, Union, List
 import einops
 import torch
 import torch.nn.functional as F
-
+from transformers.models.gpt_neo.modeling_gpt_neo import GPTNeoPreTrainedModel
 from . import util
 from .commons import Hook, HookedModel
 
@@ -90,7 +90,7 @@ def logit_hook(
     key: Optional[str] = None,
     split_heads: Optional[bool] = False,
 ) -> Hook:
-    """Create a hook that saves the logits (technically the log-probabilities) of a layer's output.
+    """Create a hook that saves the logits of a layer's output.
     Outputs are saved to save_ctx['{layer}_logits']['logits'].
     
     Currently only works with GPT like models, since it assumes the key of the embedding matrix and the structure of
@@ -132,17 +132,24 @@ def logit_hook(
     
     # load the relevant part of the vocab matrix
     vocab_matrix = model.structure['children']['transformer']['children']['wte']['module'].weight[target_slice].T
+    
+        
     if split_heads:
-        vocab_matrix = einops.rearrange(vocab_matrix, '(num_heads head_dim) vocab_size -> num_heads head_dim vocab_size', head_dim=model.model.transformer.h[layer].attn.head_dim)
+        if isinstance(model.model, GPTNeoPreTrainedModel):
+            head_dim = model.model.transformer.h[layer].attn.attention.head_dim
+        else:
+            head_dim = model.model.transformer.h[layer].attn.head_dim
+        vocab_matrix = einops.rearrange(vocab_matrix, '(num_heads head_dim) vocab_size -> num_heads head_dim vocab_size', head_dim=head_dim)
+    
     def inner(save_ctx, input, output):
         if split_heads:
-            einsum_in = einops.rearrange(output[0][position_slice], 'batch seq_len (heads head_dim) -> batch heads seq_len head_dim', head_dim=model.model.transformer.h[layer].attn.head_dim)
+            einsum_in = einops.rearrange(output[0][position_slice], 'batch seq_len (heads head_dim) -> batch heads seq_len head_dim', head_dim=head_dim)
             einsum_out = torch.einsum('bcij,cjk->bcik', einsum_in, vocab_matrix)
         else:
             einsum_in = output[0][position_slice]
             einsum_out = torch.einsum('bij,jk->bik', einsum_in, vocab_matrix)
             
-        save_ctx['logits'] = F.log_softmax(einsum_out, dim=-1).detach().cpu()
+        save_ctx['logits'] = einsum_out.detach().cpu()
     
     # write key
     if key is None:
