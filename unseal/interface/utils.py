@@ -8,7 +8,7 @@ import streamlit as st
 import torch
 
 from ..hooks import HookedModel
-from ..hooks.common_hooks import gpt_get_attention_hook
+from ..hooks.common_hooks import gpt_get_attention_hook, logit_hook
 from ..transformers_util import load_from_pretrained, get_num_layers
 from .commons import HF_MODELS
 
@@ -103,6 +103,7 @@ def startup(variables: List[str], mode_file_path: Optional[str] = './registered_
     
     # initialize session state variables
     init_session_state(variables)
+    st.session_state['visualization'] = dict()
 
     # load externally registered models
     load_registered_models(mode_file_path)
@@ -138,8 +139,6 @@ def text_change():
         with cols[k]:
             if st.session_state.prefix_prompt is not None and len(st.session_state.prefix_prompt) > 0:
                 text = st.session_state.prefix_prompt + '\n' + text
-            # if st.session_state.suffix_prompt is not None and len(st.session_state.suffix_prompt) > 0:
-            #     text = text + '\n' + st.session_state.suffix_prompt
 
             if text is None or len(text) == 0:
                 return
@@ -150,37 +149,48 @@ def text_change():
                 tokenized_text = [token.replace("Ġ", " ") for token in tokenized_text]
                 tokenized_text = [token.replace("Ċ", "\n") for token in tokenized_text]
                 model_input = st.session_state.tokenizer.encode(text, return_tensors='pt').to(st.session_state.device)
+                target_ids = st.session_state.tokenizer.encode(text)[1:]
+                
+                attn_hooks = [gpt_get_attention_hook(i, f'attn_layer_{i}') for i in range(st.session_state.num_layers)]
 
-                layer_hooks = [gpt_get_attention_hook(i, f'layer_{i}') for i in range(st.session_state.num_layers)]
-                st.session_state.model.forward(model_input, hooks=layer_hooks, output_attentions=True)
-                layer_attentions = [st.session_state.model.save_ctx[f'layer_{i}']['attn'] for i in range(st.session_state.num_layers)]
-                layer_attentions = [einops.rearrange(attn[0], 'h n1 n2 -> n1 n2 h') for attn in layer_attentions]
-            
-            for i, attn in enumerate(layer_attentions):
-                ## compute the html objects
-                # attn
-                attn_html_object = ps.AttentionMulti(tokens=tokenized_text, attention=attn, head_labels=[f'{i}:{j}' for j in range(attn.shape[-1])])
-                attn_html_object = attn_html_object.update_meta(suppress_title=True)
-                attn_html = attn_html_object.html_page_str()
-                # logit
-                #TODO
-                logit_html = None
-                with st.expander(f'Layer {i}'):
-                    st.selectbox(label='Display type', options=["Attention", "Logit Attribution"], key=f"layer_{i}_display_type", on_change=layer_display, args=(i, attn_html, logit_html))
-                    layer_display(i, attn_html, logit_html)
+                for layer in range(st.session_state.num_layers):
+                    
+                    # wrap the _attn function to create logit attribution
+                    st.session_state.model.save_ctx[f'logit_layer_{layer}'] = dict()
+                    st.session_state.model.model.transformer.h[layer].attn._attn, old_fn= gpt2_attn_wrapper(
+                        st.session_state.model.model.transformer.h[layer].attn._attn, 
+                        st.session_state.model.save_ctx[f'logit_layer_{layer}'], 
+                        st.session_state.model.model.transformer.h[layer].attn.c_proj,
+                        st.session_state.model.model.transformer.wte.weight.T,
+                        target_ids=target_ids,
+                    )
+                
+                    st.session_state.model.forward(model_input, hooks=attn_hooks, output_attentions=True)
+                
+                    # parse attentions
+                    attention = st.session_state.model.save_ctx[f"attn_layer_{layer}"]['attn'][0]
+                    attention = einops.rearrange(attention, 'h n1 n2 -> n1 n2 h')
 
-def layer_display(layer, attn_html, logit_html):
-    new_type = st.session_state[f'layer_{layer}_display_type']
-    assert new_type in ["Attention", "Logit Attribution"]
-
-    if new_type == 'Attention':
-        html_str = attn_html
-    elif new_type == 'Logit Attribution':
-        html_str = logit_html
+                    # parse logits
+                    logits = st.session_state.model.save_ctx[f'logit_layer_{layer}']['logits']
+                    logits = torch.cat([torch.zeros_like(logits[:,0][:,None]), logits], dim=1)
+                    logits = torch.cat([logits, torch.zeros_like(logits[:,:,0][:,:,None])], dim=2)
+                    logits = einops.rearrange(logits, 'h n1 n2 -> n1 n2 h')
+                    
+                    # compute and display the html object
+                    html_object = ps.AttentionLogits(tokens=tokenized_text, attention=attention, logits=logits, head_labels=[f'{layer}:{j}' for j in range(attention.shape[-1])])
+                    html_object = html_object.update_meta(suppress_title=True)
+                    html_str = html_object.html_page_str()
+                    
+                    # save the current html object for downloads
+                    st.session_state.visualization[f'layer_{layer}'] = html_str
+                    
+                    with st.expander(f'Layer {layer}'):
+                        st.components.v1.html(html_str, height=600)
+                    
+                    # restore _attn functions
+                    st.session_state.model.model.transformer.h[layer].attn._attn = old_fn
     
-    with st.expander(f"Layer {layer}"):
-        st.components.v1.html(html_str, height=600)
-
 def create_model_config(model_names):
     with st.form('model_config'):
         st.write('## Model Config')
@@ -208,7 +218,6 @@ def create_model_config(model_names):
         )
         
         st.text_area(label='Prefix Prompt', key='prefix_prompt', value='')
-        # st.text_area(label='Suffix Prompt', key='suffix_prompt', value='')
             
         submitted = st.form_submit_button("Save model config")
         if submitted:
@@ -225,3 +234,24 @@ def create_sidebar():
         model_names = st.session_state.registered_model_names
     
     create_model_config(model_names)
+
+def gpt2_attn_wrapper(func, save_ctx, c_proj, vocab_matrix, target_ids):
+    c_proj = c_proj.weight
+    vocab_matrix = vocab_matrix.to('cpu')
+    def inner(query, key, value, attention_mask=None, head_mask=None):
+        nonlocal c_proj
+        nonlocal target_ids
+        nonlocal vocab_matrix
+        attn_output, attn_weights = func(query, key, value, attention_mask, head_mask)
+        with torch.no_grad():
+            temp = attn_weights[...,None] * value[:,:,None]
+            # torch.einsum('bhnm,b', attn_weights, value)
+            if len(c_proj.shape) == 2:
+                c_proj = einops.rearrange(c_proj, '(head_dim num_heads) out_dim -> head_dim num_heads out_dim', num_heads=attn_output.shape[1])
+            temp = torch.einsum('bhtpd,dho->bhtpo', temp, c_proj)
+            temp = temp.to('cpu')
+            temp = (temp @ vocab_matrix)[0,:,:-1]
+            temp -= temp.mean(dim=-1, keepdim=True)
+            save_ctx['logits'] = temp[...,torch.arange(len(target_ids)),target_ids].to('cpu')
+        return attn_output, attn_weights
+    return inner, func
