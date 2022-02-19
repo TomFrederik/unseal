@@ -58,6 +58,7 @@ def generate_logit_lense(
     # run model
     model.forward(tokenized_sentence, hooks=logit_hooks)
     logits = torch.stack([model.save_ctx[str(layer) + '_logits']['logits'][0] for layer in range(num_layers)], dim=0)
+    logits = F.log_softmax(logits, dim=-1)
     
     # compute ranks and kld
     if ranks:
