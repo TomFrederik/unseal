@@ -1,14 +1,15 @@
 import importlib
 import json
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Union, Iterable, Callable
 
 import einops
 import pysvelte as ps
 import streamlit as st
 import torch
 
-from ..hooks import HookedModel
+from ..hooks import HookedModel, Hook
 from ..hooks.common_hooks import gpt_get_attention_hook, logit_hook
+from ..hooks import util 
 from ..transformers_util import load_from_pretrained, get_num_layers
 from .commons import HF_MODELS
 
@@ -35,7 +36,10 @@ def on_config_submit(model_name: str) -> Tuple:
     model = HookedModel(model)
     model.to(st.session_state.device).eval()
     
-    st.session_state.num_layers = get_num_layers(model)
+    if model_name in st.session_state.registered_models:
+        st.session_state.num_layers = 2 # TODO
+    else:
+        st.session_state.num_layers = get_num_layers(model)
 
     return model, tokenizer, config
 
@@ -90,6 +94,7 @@ def load_registered_models(model_file_path: str = './registered_models.json') ->
         st.session_state.registered_models = dict()
     st.session_state.registered_model_names = list(st.session_state.registered_models.keys())
 
+
 def startup(variables: List[str], mode_file_path: Optional[str] = './registered_models.json') -> None:
     """Performs startup tasks for the app.
 
@@ -104,7 +109,8 @@ def startup(variables: List[str], mode_file_path: Optional[str] = './registered_
     # initialize session state variables
     init_session_state(variables)
     st.session_state['visualization'] = dict()
-
+    st.session_state['startup_done'] = True
+    
     # load externally registered models
     load_registered_models(mode_file_path)
     
@@ -132,6 +138,27 @@ def on_text_change(storage_key, text_key):
     st.session_state[storage_key] = st.session_state[text_key]
     text_change()
     
+
+## TODO
+# move those two functions somewhere else
+def grokking_get_attention(heads: Optional[Union[int, Iterable[int], str]] = None) -> Callable:
+    # convert string to slice
+    if heads is None:
+        heads = ":"
+    if isinstance(heads, str):
+        heads = util.create_slice(heads)
+
+    def func(save_ctx, input, output):
+        save_ctx['attn'] = output[1][:,heads,...].detach().cpu()
+    
+    return func
+
+def grokking_get_attention_hook(layer: int, key: str, heads: Optional[Union[int, Iterable[int], str]] = None) -> Callable:
+    func = grokking_get_attention(heads)
+    return Hook(f'transformer->{layer}->self_attn', func, key)    
+####
+
+
 def text_change():
     cols = st.columns(2)
     
@@ -142,8 +169,50 @@ def text_change():
 
             if text is None or len(text) == 0:
                 return
-            if st.session_state.model_name.endswith('grokking'):
-                raise NotImplementedError
+            if st.session_state.model_name in st.session_state.registered_model_names:
+                tokenized_text = st.session_state.tokenizer.tokenize(text)
+                model_input = st.session_state.tokenizer.encode(text).to(st.session_state.device)
+                target_ids = model_input[0,1:].to('cpu')
+                #TODO generalize this somehow
+                attn_hooks = [grokking_get_attention_hook(i, f'attn_layer_{i}') for i in range(st.session_state.num_layers)]
+                
+                for layer in range(st.session_state.num_layers):
+                    # wrap the _attn function to create logit attribution
+                    st.session_state.model.save_ctx[f'logit_layer_{layer}'] = dict()
+                    st.session_state.model.model.transformer[layer].self_attn._attn, old_fn= gpt2_attn_wrapper(
+                        st.session_state.model.model.transformer[layer].self_attn._attn, 
+                        st.session_state.model.save_ctx[f'logit_layer_{layer}'], 
+                        st.session_state.model.model.transformer[layer].self_attn.o_proj,
+                        st.session_state.model.model.embedding.weight.T,
+                        target_ids=target_ids,
+                    )
+                    
+                    st.session_state.model.forward(model_input, hooks=attn_hooks)
+                    
+                    # parse attentions
+                    attention = st.session_state.model.save_ctx[f"attn_layer_{layer}"]['attn'][0]
+                    attention = einops.rearrange(attention, 'h n1 n2 -> n1 n2 h')
+
+                    # parse logits
+                    logits = st.session_state.model.save_ctx[f'logit_layer_{layer}']['logits']
+                    logits = torch.cat([torch.zeros_like(logits[:,0][:,None]), logits], dim=1)
+                    logits = torch.cat([logits, torch.zeros_like(logits[:,:,0][:,:,None])], dim=2)
+                    logits = einops.rearrange(logits, 'h n1 n2 -> n1 n2 h')
+                    
+                    # compute and display the html object
+                    html_object = ps.AttentionLogits(tokens=tokenized_text, attention=attention, logits=logits, head_labels=[f'{layer}:{j}' for j in range(attention.shape[-1])])
+                    html_object = html_object.update_meta(suppress_title=True)
+                    html_str = html_object.html_page_str()
+                    
+                    # save the current html object for downloads
+                    st.session_state.visualization[f'layer_{layer}'] = html_str
+                    
+                    with st.expander(f'Layer {layer}'):
+                        st.components.v1.html(html_str, height=600)
+                    
+                    # restore _attn functions
+                    st.session_state.model.model.transformer[layer].self_attn._attn = old_fn
+                        
             else:
                 tokenized_text = st.session_state.tokenizer.tokenize(text)
                 tokenized_text = [token.replace("Ġ", " ") for token in tokenized_text]
@@ -184,7 +253,7 @@ def text_change():
                     
                     # save the current html object for downloads
                     st.session_state.visualization[f'layer_{layer}'] = html_str
-                    
+                    print(f"{list(st.session_state.visualization.keys()) = }")
                     with st.expander(f'Layer {layer}'):
                         st.components.v1.html(html_str, height=600)
                     
@@ -238,11 +307,11 @@ def create_sidebar():
 def gpt2_attn_wrapper(func, save_ctx, c_proj, vocab_matrix, target_ids):
     c_proj = c_proj.weight
     vocab_matrix = vocab_matrix.to('cpu')
-    def inner(query, key, value, attention_mask=None, head_mask=None):
+    def inner(query, key, value, *args, **kwargs):
         nonlocal c_proj
         nonlocal target_ids
         nonlocal vocab_matrix
-        attn_output, attn_weights = func(query, key, value, attention_mask, head_mask)
+        attn_output, attn_weights = func(query, key, value, *args, **kwargs)
         with torch.no_grad():
             temp = attn_weights[...,None] * value[:,:,None]
             # torch.einsum('bhnm,b', attn_weights, value)

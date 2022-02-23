@@ -61,22 +61,6 @@ def transformers_get_attention(heads: Optional[Union[int, Iterable[int], str]] =
     
     return func
 
-def transformers_get_head_logit_attr(
-    wte: torch.Tensor, 
-    heads: Optional[Union[int, Iterable[int], str]] = None, 
-) -> Callable:
-    wte = None
-    # convert string to slice
-    if heads is None:
-        heads = ":"
-    if isinstance(heads, str):
-        heads = util.create_slice(heads)
-
-    def func(save_ctx, input, output):
-        save_ctx['attn'] = output[0][:,heads,...].detach().cpu()
-    
-    return func
-
 def gpt_get_attention_hook(layer: int, key: str, heads: Optional[Union[int, Iterable[int], str]] = None) -> Callable:
     func = transformers_get_attention(heads)
     return Hook(f'transformer->h->{layer}->attn', func, key)
