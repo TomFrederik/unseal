@@ -1,7 +1,7 @@
 unseal.interface package
-=====================
+========================
 
-This package handles the nitty-gritty of hooking to a model.
+This package handles GUI to work with models.
 
 
 interface module

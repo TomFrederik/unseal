@@ -1,6 +1,8 @@
 .. _interfaces:
 
-# Interfaces in Unseal
+====================
+Interfaces in Unseal
+====================
 
 .. contents:: Contents
 
@@ -9,7 +11,8 @@ large language models.
 
 At its core it relies on a combination of Streamlit and PySvelte.
 
-## Native interfaces
+Native interfaces
+====================
 
 Unseal comes with several native interfaces that are ready to use out of the box.
 
