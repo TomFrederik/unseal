@@ -19,25 +19,25 @@ with st.sidebar:
         utils.create_sample_sliders()
         utils.on_sampling_config_change()
     
-    if "storage_1" not in st.session_state:
-        st.session_state["storage_1"] = ""
-        st.session_state["storage_2"] = ""
+    if "storage" not in st.session_state:
+        st.session_state["storage"] = ["", ""]
         
     # input 1
     placeholder1 = st.empty()
-    placeholder1.text_area(label='Input 1', on_change=utils.on_text_change, key='input_text_1', value=st.session_state.storage_1, kwargs=dict(storage_key="storage_1", text_key='input_text_1'))
+    placeholder1.text_area(label='Input 1', on_change=utils.on_text_change, key='input_text_1', value=st.session_state.storage[0], kwargs=dict(col_idx=0, text_key='input_text_1'))
     if sample:
-        st.button(label="Sample", on_click=utils.sample_text, kwargs=dict(storage_key="storage_1", label='Input 1', key="input_text_1"), key="sample_text_1")
+        st.button(label="Sample", on_click=utils.sample_text, kwargs=dict(col_idx=0, key="input_text_1"), key="sample_text_1")
     
     # input 2
     placeholder2 = st.empty()
-    placeholder2.text_area(label='Input 2', on_change=utils.on_text_change, key='input_text_2', value=st.session_state.storage_2, kwargs=dict(storage_key="storage_2", text_key='input_text_2'))
+    placeholder2.text_area(label='Input 2', on_change=utils.on_text_change, key='input_text_2', value=st.session_state.storage[1], kwargs=dict(col_idx=1, text_key='input_text_2'))
     if sample:
-        st.button(label="Sample", on_click=utils.sample_text, kwargs=dict(storage_key="storage_2", label='Input 2', key="input_text_2"), key="sample_text_2")
+        st.button(label="Sample", on_click=utils.sample_text, kwargs=dict(col_idx=1, key="input_text_2"), key="sample_text_2")
     
     # sometimes need to force a re-render
-    st.button('Show Attention', on_click=utils.text_change)
+    st.button('Show Attention', on_click=utils.text_change, kwargs=dict(col_idx=[0,1]))
     
+    # download button
     f =  json.encoder.JSONEncoder().encode(st.session_state.visualization)
     st.download_button(
         label='Download Visualization', 
@@ -47,3 +47,13 @@ with st.sidebar:
         help='Download the visualizations as a json of html files.', 
         key='download_button'
     )
+
+# show the html visualization
+if st.session_state.model is not None:
+    cols = st.columns(2)
+    for col_idx, col in enumerate(cols):
+        if f"col_{col_idx}" in st.session_state.visualization:
+            with col:
+                for layer in range(st.session_state.num_layers):
+                    with st.expander(f'Layer {layer}'):
+                        st.components.v1.html(st.session_state.visualization[f"col_{col_idx}"][f"layer_{layer}"], height=600)

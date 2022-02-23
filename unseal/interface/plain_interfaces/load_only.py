@@ -12,7 +12,6 @@ def on_file_upload():
     data = json.loads(StringIO(st.session_state.uploaded_file.getvalue().decode('utf-8')).read())
     
     st.session_state.visualization = data
-    print(data)
     
     for layer in range(len(data)):
         html_str = st.session_state.visualization[f'layer_{layer}']
