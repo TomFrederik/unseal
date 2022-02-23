@@ -7,6 +7,9 @@
 Welcome to Unseal's documentation!
 ==================================
 
+If you are new to Unseal, you should start by reading the :ref:`getting started <getting_started>` guide.
+
+
 .. toctree::
    :maxdepth: 1
    :caption: Tutorials and Guides
@@ -18,8 +21,10 @@ Welcome to Unseal's documentation!
    :maxdepth: 1
    :caption: API Reference
 
-   unseal.transformers_util
    unseal.hooks
+   unseal.interface
+   unseal.transformers_util
+   unseal.logit_lense
    
 
 

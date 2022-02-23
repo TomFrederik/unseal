@@ -38,3 +38,11 @@ hooks.util module
    :members:
    :undoc-members:
    :show-inheritance:
+
+hooks.commons module
+-------------------------------
+
+.. automodule:: unseal.interface.commons
+   :members:
+   :undoc-members:
+   :show-inheritance:
