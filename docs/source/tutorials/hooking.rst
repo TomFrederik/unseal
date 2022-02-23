@@ -2,7 +2,7 @@
 
 
 ===============
-Hooking
+Hooks
 ===============
 
 Hooks are at the heart of Unseal. In short, a hook is an access point to a model. It is defined by the point of the model at 

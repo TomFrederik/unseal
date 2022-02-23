@@ -1,4 +1,4 @@
-.. _interface_tut:
+.. _interfaces:
 
 # Interfaces in Unseal
 
@@ -12,3 +12,5 @@ At its core it relies on a combination of Streamlit and PySvelte.
 ## Native interfaces
 
 Unseal comes with several native interfaces that are ready to use out of the box.
+
+All the pre-built interfaces are available in the ``unseal.interface.plain_interfaces`` package.
