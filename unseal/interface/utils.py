@@ -163,52 +163,96 @@ def grokking_get_attention_hook(layer: int, key: str, heads: Optional[Union[int,
 ####
 
 def compute_attn_logits(text, save_destination):
-    tokenized_text = st.session_state.tokenizer.tokenize(text)
-    tokenized_text = [token.replace("Ġ", " ") for token in tokenized_text]
-    tokenized_text = [token.replace("Ċ", "\n") for token in tokenized_text]
-    model_input = st.session_state.tokenizer.encode(text, return_tensors='pt').to(st.session_state.device)
-    target_ids = st.session_state.tokenizer.encode(text)[1:]
-    
-    attn_hooks = [gpt_get_attention_hook(i, f'attn_layer_{i}') for i in range(st.session_state.num_layers)]
-
-    for layer in range(st.session_state.num_layers):
+    if st.session_state.model_name in st.session_state.registered_model_names:
+        tokenized_text = st.session_state.tokenizer.tokenize(text)
+        model_input = st.session_state.tokenizer.encode(text).to(st.session_state.device)
+        target_ids = model_input[0,1:].to('cpu')
+        #TODO generalize this somehow
+        attn_hooks = [grokking_get_attention_hook(i, f'attn_layer_{i}') for i in range(st.session_state.num_layers)]
         
-        # wrap the _attn function to create logit attribution
-        st.session_state.model.save_ctx[f'logit_layer_{layer}'] = dict()
-        st.session_state.model.model.transformer.h[layer].attn._attn, old_fn= gpt2_attn_wrapper(
-            st.session_state.model.model.transformer.h[layer].attn._attn, 
-            st.session_state.model.save_ctx[f'logit_layer_{layer}'], 
-            st.session_state.model.model.transformer.h[layer].attn.c_proj.weight,
-            st.session_state.model.model.transformer.wte.weight.T,
-            target_ids=target_ids,
-        )
-    
-        st.session_state.model.forward(model_input, hooks=attn_hooks, output_attentions=True)
-    
-        # parse attentions
-        attention = st.session_state.model.save_ctx[f"attn_layer_{layer}"]['attn'][0]
-        attention = einops.rearrange(attention, 'h n1 n2 -> n1 n2 h')
+        for layer in range(st.session_state.num_layers):
+            # wrap the _attn function to create logit attribution
+            st.session_state.model.save_ctx[f'logit_layer_{layer}'] = dict()
+            st.session_state.model.model.transformer[layer].self_attn._attn, old_fn= gpt2_attn_wrapper(
+                st.session_state.model.model.transformer[layer].self_attn._attn, 
+                st.session_state.model.save_ctx[f'logit_layer_{layer}'], 
+                st.session_state.model.model.transformer[layer].self_attn.o_proj.weight,
+                st.session_state.model.model.embedding.weight.T,
+                target_ids=target_ids,
+            )
+            
+            st.session_state.model.forward(model_input, hooks=attn_hooks)
+            
+            # parse attentions
+            attention = st.session_state.model.save_ctx[f"attn_layer_{layer}"]['attn'][0]
+            attention = einops.rearrange(attention, 'h n1 n2 -> n1 n2 h')
 
-        # parse logits
-        if model_input.shape[1] > 1: # otherwise we don't have any logit attribution
-            logits = st.session_state.model.save_ctx[f'logit_layer_{layer}']['logits']
-            logits = torch.cat([torch.zeros_like(logits[:,0][:,None]), logits], dim=1)
-            logits = torch.cat([logits, torch.zeros_like(logits[:,:,0][:,:,None])], dim=2)
-            logits = einops.rearrange(logits, 'h n1 n2 -> n1 n2 h')
-        else:
-            logits = torch.zeros((attention.shape[0], attention.shape[1], attention.shape[2]))
+            # parse logits
+            if model_input.shape[1] > 1: # otherwise we don't have any logit attribution
+                logits = st.session_state.model.save_ctx[f'logit_layer_{layer}']['logits']
+                logits = torch.cat([torch.zeros_like(logits[:,0][:,None]), logits], dim=1)
+                logits = torch.cat([logits, torch.zeros_like(logits[:,:,0][:,:,None])], dim=2)
+                logits = einops.rearrange(logits, 'h n1 n2 -> n1 n2 h')
+            else:
+                logits = torch.zeros((attention.shape[0], attention.shape[1], attention.shape[2]))
+                
+            # compute and display the html object
+            html_object = ps.AttentionLogits(tokens=tokenized_text, attention=attention, logits=logits, head_labels=[f'{layer}:{j}' for j in range(attention.shape[-1])])
+            html_object = html_object.update_meta(suppress_title=True)
+            html_str = html_object.html_page_str()
+            
+            # save html string
+            save_destination[f'layer_{layer}'] = html_str
+            
+            # restore _attn functions
+            st.session_state.model.model.transformer[layer].self_attn._attn = old_fn
+    else:
+        tokenized_text = st.session_state.tokenizer.tokenize(text)
+        tokenized_text = [token.replace("Ġ", " ") for token in tokenized_text]
+        tokenized_text = [token.replace("Ċ", "\n") for token in tokenized_text]
+        model_input = st.session_state.tokenizer.encode(text, return_tensors='pt').to(st.session_state.device)
+        target_ids = st.session_state.tokenizer.encode(text)[1:]
         
-        # compute and display the html object
-        html_object = ps.AttentionLogits(tokens=tokenized_text, attention=attention, logits=logits, head_labels=[f'{layer}:{j}' for j in range(attention.shape[-1])])
-        html_object = html_object.update_meta(suppress_title=True)
-        html_str = html_object.html_page_str()
+        attn_hooks = [gpt_get_attention_hook(i, f'attn_layer_{i}') for i in range(st.session_state.num_layers)]
 
-        # save html string
-        save_destination[f'layer_{layer}'] = html_str
+        for layer in range(st.session_state.num_layers):
+            
+            # wrap the _attn function to create logit attribution
+            st.session_state.model.save_ctx[f'logit_layer_{layer}'] = dict()
+            st.session_state.model.model.transformer.h[layer].attn._attn, old_fn= gpt2_attn_wrapper(
+                st.session_state.model.model.transformer.h[layer].attn._attn, 
+                st.session_state.model.save_ctx[f'logit_layer_{layer}'], 
+                st.session_state.model.model.transformer.h[layer].attn.c_proj.weight,
+                st.session_state.model.model.transformer.wte.weight.T,
+                target_ids=target_ids,
+            )
         
-        # reset _attn function
-        st.session_state.model.model.transformer.h[layer].attn._attn = old_fn
-    
+            st.session_state.model.forward(model_input, hooks=attn_hooks, output_attentions=True)
+        
+            # parse attentions
+            attention = st.session_state.model.save_ctx[f"attn_layer_{layer}"]['attn'][0]
+            attention = einops.rearrange(attention, 'h n1 n2 -> n1 n2 h')
+
+            # parse logits
+            if model_input.shape[1] > 1: # otherwise we don't have any logit attribution
+                logits = st.session_state.model.save_ctx[f'logit_layer_{layer}']['logits']
+                logits = torch.cat([torch.zeros_like(logits[:,0][:,None]), logits], dim=1)
+                logits = torch.cat([logits, torch.zeros_like(logits[:,:,0][:,:,None])], dim=2)
+                logits = einops.rearrange(logits, 'h n1 n2 -> n1 n2 h')
+            else:
+                logits = torch.zeros((attention.shape[0], attention.shape[1], attention.shape[2]))
+            
+            # compute and display the html object
+            html_object = ps.AttentionLogits(tokens=tokenized_text, attention=attention, logits=logits, head_labels=[f'{layer}:{j}' for j in range(attention.shape[-1])])
+            html_object = html_object.update_meta(suppress_title=True)
+            html_str = html_object.html_page_str()
+
+            # save html string
+            save_destination[f'layer_{layer}'] = html_str
+            
+            # reset _attn function
+            st.session_state.model.model.transformer.h[layer].attn._attn = old_fn
+        
 
 def text_change(col_idx: Union[int, List[int]]):
     if isinstance(col_idx, list):
@@ -223,55 +267,7 @@ def text_change(col_idx: Union[int, List[int]]):
     if text is None or len(text) == 0:
         return
             
-    if st.session_state.model_name in st.session_state.registered_model_names:
-        # tokenized_text = st.session_state.tokenizer.tokenize(text)
-        # model_input = st.session_state.tokenizer.encode(text).to(st.session_state.device)
-        # target_ids = model_input[0,1:].to('cpu')
-        # #TODO generalize this somehow
-        # attn_hooks = [grokking_get_attention_hook(i, f'attn_layer_{i}') for i in range(st.session_state.num_layers)]
-        
-        # for layer in range(st.session_state.num_layers):
-        #     # wrap the _attn function to create logit attribution
-        #     st.session_state.model.save_ctx[f'logit_layer_{layer}'] = dict()
-        #     st.session_state.model.model.transformer[layer].self_attn._attn, old_fn= gpt2_attn_wrapper(
-        #         st.session_state.model.model.transformer[layer].self_attn._attn, 
-        #         st.session_state.model.save_ctx[f'logit_layer_{layer}'], 
-        #         st.session_state.model.model.transformer[layer].self_attn.o_proj,
-        #         st.session_state.model.model.embedding.weight.T,
-        #         target_ids=target_ids,
-        #     )
-            
-        #     st.session_state.model.forward(model_input, hooks=attn_hooks)
-            
-        #     # parse attentions
-        #     attention = st.session_state.model.save_ctx[f"attn_layer_{layer}"]['attn'][0]
-        #     attention = einops.rearrange(attention, 'h n1 n2 -> n1 n2 h')
-
-        #     # parse logits
-        #     logits = st.session_state.model.save_ctx[f'logit_layer_{layer}']['logits']
-        #     logits = torch.cat([torch.zeros_like(logits[:,0][:,None]), logits], dim=1)
-        #     logits = torch.cat([logits, torch.zeros_like(logits[:,:,0][:,:,None])], dim=2)
-        #     logits = einops.rearrange(logits, 'h n1 n2 -> n1 n2 h')
-            
-        #     # compute and display the html object
-        #     html_object = ps.AttentionLogits(tokens=tokenized_text, attention=attention, logits=logits, head_labels=[f'{layer}:{j}' for j in range(attention.shape[-1])])
-        #     html_object = html_object.update_meta(suppress_title=True)
-        #     html_str = html_object.html_page_str()
-            
-        #     # save the current html object for downloads
-        #     st.session_state.visualization[f'layer_{layer}'] = html_str
-            
-        #     with st.expander(f'Layer {layer}'):
-        #         st.components.v1.html(html_str, height=600)
-            
-        #     # restore _attn functions
-        #     st.session_state.model.model.transformer[layer].self_attn._attn = old_fn
-        raise NotImplementedError
-    else:
-        if f'col_{col_idx}' not in st.session_state.visualization:
-            st.session_state.visualization[f'col_{col_idx}'] = dict()
-            
-        compute_attn_logits(text, st.session_state.visualization[f'col_{col_idx}'])
+    compute_attn_logits(text, st.session_state.visualization[f'col_{col_idx}'])
 
 def create_model_config(model_names):
     with st.form('model_config'):
