@@ -6,7 +6,9 @@ from unseal.interface import utils
 from unseal.interface.commons import SESSION_STATE_VARIABLES
 
 # perform startup tasks
-utils.startup(SESSION_STATE_VARIABLES, './registered_models.json')
+if 'startup_done' not in st.session_state:
+    st.session_state['startup_done'] = False
+    utils.startup(SESSION_STATE_VARIABLES, './registered_models.json')
 
 # create sidebar
 with st.sidebar:
@@ -36,12 +38,12 @@ with st.sidebar:
     # sometimes need to force a re-render
     st.button('Show Attention', on_click=utils.text_change)
     
-    # f =  json.encoder.JSONEncoder().encode(st.session_state.visualization)
-    # st.download_button(
-    #     label='Download Visualization', 
-    #     data=f, 
-    #     file_name=f'{st.session_state.model_name}_{time.strftime("%Y%m%d_%H%M%S", time.localtime())}.json', 
-    #     mime='application/json', 
-    #     help='Download the visualizations as an json of html files.', 
-    #     key='download_button'
-    # )
+    f =  json.encoder.JSONEncoder().encode(st.session_state.visualization)
+    st.download_button(
+        label='Download Visualization', 
+        data=f, 
+        file_name=f'{st.session_state.model_name}_{time.strftime("%Y%m%d_%H%M%S", time.localtime())}.json', 
+        mime='application/json', 
+        help='Download the visualizations as a json of html files.', 
+        key='download_button'
+    )
