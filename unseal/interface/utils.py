@@ -1,6 +1,6 @@
 import importlib
 import json
-from typing import List, Tuple, Optional, Union, Iterable, Callable
+from typing import List, Tuple, Optional, Union, Iterable, Callable, Dict
 
 import einops
 import pysvelte as ps
@@ -8,7 +8,7 @@ import streamlit as st
 import torch
 
 from ..hooks import HookedModel, Hook
-from ..hooks.common_hooks import gpt_get_attention_hook, logit_hook
+from ..hooks.common_hooks import gpt_get_attention_hook, gpt2_attn_wrapper
 from ..hooks import util 
 from ..transformers_util import load_from_pretrained, get_num_layers
 from .commons import HF_MODELS
@@ -229,7 +229,7 @@ def text_change():
                     st.session_state.model.model.transformer.h[layer].attn._attn, old_fn= gpt2_attn_wrapper(
                         st.session_state.model.model.transformer.h[layer].attn._attn, 
                         st.session_state.model.save_ctx[f'logit_layer_{layer}'], 
-                        st.session_state.model.model.transformer.h[layer].attn.c_proj,
+                        st.session_state.model.model.transformer.h[layer].attn.c_proj.weight,
                         st.session_state.model.model.transformer.wte.weight.T,
                         target_ids=target_ids,
                     )
@@ -303,24 +303,3 @@ def create_sidebar():
         model_names = st.session_state.registered_model_names
     
     create_model_config(model_names)
-
-def gpt2_attn_wrapper(func, save_ctx, c_proj, vocab_matrix, target_ids):
-    c_proj = c_proj.weight
-    vocab_matrix = vocab_matrix.to('cpu')
-    def inner(query, key, value, *args, **kwargs):
-        nonlocal c_proj
-        nonlocal target_ids
-        nonlocal vocab_matrix
-        attn_output, attn_weights = func(query, key, value, *args, **kwargs)
-        with torch.no_grad():
-            temp = attn_weights[...,None] * value[:,:,None]
-            # torch.einsum('bhnm,b', attn_weights, value)
-            if len(c_proj.shape) == 2:
-                c_proj = einops.rearrange(c_proj, '(head_dim num_heads) out_dim -> head_dim num_heads out_dim', num_heads=attn_output.shape[1])
-            temp = torch.einsum('bhtpd,dho->bhtpo', temp, c_proj)
-            temp = temp.to('cpu')
-            temp = (temp @ vocab_matrix)[0,:,:-1]
-            temp -= temp.mean(dim=-1, keepdim=True)
-            save_ctx['logits'] = temp[...,torch.arange(len(target_ids)),target_ids].to('cpu')
-        return attn_output, attn_weights
-    return inner, func

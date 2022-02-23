@@ -1,5 +1,5 @@
 # pre-implemented common hooks
-from typing import Iterable, Callable, Optional, Union, List
+from typing import Iterable, Callable, Optional, Union, List, Tuple, Dict
 
 import einops
 import torch
@@ -143,3 +143,43 @@ def logit_hook(
     hook = Hook(f'transformer->h->{layer}', inner, key)
     
     return hook
+
+def gpt2_attn_wrapper(
+    func: Callable, 
+    save_ctx: Dict, 
+    c_proj: torch.Tensor, 
+    vocab_matrix: torch.Tensor, 
+    target_ids: torch.Tensor,
+) -> Tuple[Callable, Callable]:
+    """Wraps around the GPT2Attention._attn function to save the individual heads' logits.
+
+    :param func: original _attn function
+    :type func: Callable
+    :param save_ctx: context to which the logits will be saved
+    :type save_ctx: Dict
+    :param c_proj: projection matrix, this is W_O in Anthropic's terminology
+    :type c_proj: torch.Tensor
+    :param vocab_matrix: vocabulary/embedding matrix, this is W_V in Anthropic's terminology
+    :type vocab_matrix: torch.Tensor
+    :param target_ids: indices of the target tokens for which the logits are computed
+    :type target_ids: torch.Tensor
+    :return: inner, func, the wrapped function and the original function
+    :rtype: Tuple[Callable, Callable]
+    """
+    vocab_matrix = vocab_matrix.to('cpu')
+    def inner(query, key, value, *args, **kwargs):
+        nonlocal c_proj
+        nonlocal target_ids
+        nonlocal vocab_matrix
+        attn_output, attn_weights = func(query, key, value, *args, **kwargs)
+        with torch.no_grad():
+            temp = attn_weights[...,None] * value[:,:,None]
+            if len(c_proj.shape) == 2:
+                c_proj = einops.rearrange(c_proj, '(head_dim num_heads) out_dim -> head_dim num_heads out_dim', num_heads=attn_output.shape[1])
+            temp = torch.einsum('bhtpd,dho->bhtpo', temp, c_proj)
+            temp = temp.to('cpu')
+            temp = (temp @ vocab_matrix)[0,:,:-1]
+            temp -= temp.mean(dim=-1, keepdim=True)
+            save_ctx['logits'] = temp[...,torch.arange(len(target_ids)),target_ids].to('cpu')
+        return attn_output, attn_weights
+    return inner, func
