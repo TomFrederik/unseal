@@ -42,8 +42,8 @@ def replace_activation(indices: str, replacement_tensor: torch.Tensor) -> Callab
     def func(save_ctx, input, output):
         # add dummy dimensions if shape mismatch
         diff = len(output[slice_].shape) - len(replacement_tensor.shape)
-        rep = replacement_tensor[[None for _ in range(diff)]].to(output.device)
-        # replace part of tensor    
+        rep = replacement_tensor[(None,)*diff].to(output.device)
+        # replace part of tensor
         output[slice_] = rep
         return output
 
