@@ -37,7 +37,7 @@ def on_config_submit(model_name: str) -> Tuple:
     model.to(st.session_state.device).eval()
     
     if model_name in st.session_state.registered_models:
-        st.session_state.num_layers = 2 # TODO
+        st.session_state.num_layers = len(model.structure['children']['transformer']['children']) # TODO
     else:
         st.session_state.num_layers = get_num_layers(model)
 
@@ -236,14 +236,20 @@ def compute_attn_logits(text, save_destination):
             # parse logits
             if model_input.shape[1] > 1: # otherwise we don't have any logit attribution
                 logits = st.session_state.model.save_ctx[f'logit_layer_{layer}']['logits']
-                logits = torch.cat([torch.zeros_like(logits[:,0][:,None]), logits], dim=1)
-                logits = torch.cat([logits, torch.zeros_like(logits[:,:,0][:,:,None])], dim=2)
-                logits = einops.rearrange(logits, 'h n1 n2 -> n1 n2 h')
+                pos_logits = logits['pos']
+                neg_logits = logits['neg']
+                pos_logits = pad_logits(pos_logits)
+                neg_logits = pad_logits(neg_logits)
+                
+                
+                pos_logits = einops.rearrange(pos_logits, 'h n1 n2 -> n1 n2 h')
+                neg_logits = einops.rearrange(neg_logits, 'h n1 n2 -> n1 n2 h')
             else:
-                logits = torch.zeros((attention.shape[0], attention.shape[1], attention.shape[2]))
+                pos_logits = torch.zeros((attention.shape[0], attention.shape[1], attention.shape[2]))
+                neg_logits = torch.zeros((attention.shape[0], attention.shape[1], attention.shape[2]))
             
             # compute and display the html object
-            html_object = ps.AttentionLogits(tokens=tokenized_text, attention=attention, logits=logits, head_labels=[f'{layer}:{j}' for j in range(attention.shape[-1])])
+            html_object = ps.AttentionLogits(tokens=tokenized_text, attention=attention, pos_logits=pos_logits, neg_logits=neg_logits, head_labels=[f'{layer}:{j}' for j in range(attention.shape[-1])])
             html_object = html_object.update_meta(suppress_title=True)
             html_str = html_object.html_page_str()
 
@@ -253,6 +259,10 @@ def compute_attn_logits(text, save_destination):
             # reset _attn function
             st.session_state.model.model.transformer.h[layer].attn._attn = old_fn
         
+def pad_logits(logits):
+    logits = torch.cat([torch.zeros_like(logits[:,0][:,None]), logits], dim=1)
+    logits = torch.cat([logits, torch.zeros_like(logits[:,:,0][:,:,None])], dim=2)
+    return logits
 
 def text_change(col_idx: Union[int, List[int]]):
     if isinstance(col_idx, list):

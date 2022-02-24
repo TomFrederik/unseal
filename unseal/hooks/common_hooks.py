@@ -180,6 +180,15 @@ def gpt2_attn_wrapper(
             temp = temp.to('cpu')
             temp = (temp @ vocab_matrix)[0,:,:-1]
             temp -= temp.mean(dim=-1, keepdim=True)
-            save_ctx['logits'] = temp[...,torch.arange(len(target_ids)),target_ids].to('cpu')
+            # scale over src, dst and vocab for each head
+            temp = temp / temp.abs().amax(dim=[-3,-2,-1], keepdim=True)
+            # select targets
+            temp = temp[...,torch.arange(len(target_ids)),target_ids].to('cpu')
+            
+            save_ctx['logits'] = {
+                'pos': temp.clamp(min=0, max=1),
+                'neg': -1 * temp.clamp(min=-1, max=0),
+            }
+         
         return attn_output, attn_weights
     return inner, func
