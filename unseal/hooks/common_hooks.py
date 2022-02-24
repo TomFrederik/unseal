@@ -166,30 +166,33 @@ def gpt2_attn_wrapper(
     :return: inner, func, the wrapped function and the original function
     :rtype: Tuple[Callable, Callable]
     """
-    batch_size = 1024
+    batch_size = 512
     def inner(query, key, value, *args, **kwargs):
         nonlocal c_proj
         nonlocal target_ids
         nonlocal vocab_embedding
         attn_output, attn_weights = func(query, key, value, *args, **kwargs)
+        max_value = -torch.inf
         with torch.no_grad():
             temp = attn_weights[...,None] * value[:,:,None]
             if len(c_proj.shape) == 2:
                 c_proj = einops.rearrange(c_proj, '(head_dim num_heads) out_dim -> head_dim num_heads out_dim', num_heads=attn_output.shape[1])
-            temp = torch.einsum('bhtpd,dho->bhtpo', temp, c_proj)
-            b, h, t, p, o = temp.shape
-            temp = einops.rearrange(temp, 'b h t p o -> (b h t p) o')
-            print('start stacking')
-            temp = torch.stack([(temp[i*batch_size:(i+1)*batch_size] @ vocab_embedding).to('cpu') for i in range(temp.shape[0]//batch_size + 1)], dim=0)
-            print('finished stacking')
-            temp = einops.rearrange(temp, '(b h t p) o -> b h t p o', b=b, h=h, t=t, p=p)
-            temp = temp[0,:,:-1]
-            print(f"{temp.shape = }")
-            temp -= temp.mean(dim=-1, keepdim=True)
-            # scale over src, dst and vocab for each head
-            temp = temp / temp.abs().amax(dim=[-3,-2,-1], keepdim=True)
-            # select targets
-            temp = temp[...,torch.arange(len(target_ids)),target_ids]
+            temp = temp[0,:,:-1] # could this be done earlier?
+            temp = torch.einsum('htpd,dho->htpo', temp, c_proj)
+            h, t, p, o = temp.shape
+            temp = einops.rearrange(temp, 'h t p o -> (h t) p o')
+            new_temp = []
+            for i in range(temp.shape[0] // batch_size + 1):
+                out = (temp[i*batch_size:(i+1)*batch_size] @ vocab_embedding).to('cpu')
+                out -= out.mean(dim=-1, keepdim=True)
+                # scale over src, dst, vocab and head
+                max_value = max(max_value, torch.amax(out.abs())) # TODO is this right?
+                # select targets
+                out = out[...,torch.arange(len(target_ids)), target_ids]
+                new_temp.append(out)
+            temp = torch.cat(new_temp, dim=0)        
+            temp = einops.rearrange(temp, '(h t) p -> h t p', h=h, t=t, p=len(target_ids))
+            temp = temp / max_value
             
             save_ctx['logits'] = {
                 'pos': temp.clamp(min=0, max=1),
