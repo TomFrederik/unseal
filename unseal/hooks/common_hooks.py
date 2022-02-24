@@ -5,6 +5,7 @@ import einops
 import torch
 import torch.nn.functional as F
 from transformers.models.gpt_neo.modeling_gpt_neo import GPTNeoPreTrainedModel
+from tqdm import tqdm
 from . import util
 from .commons import Hook, HookedModel
 
@@ -166,13 +167,12 @@ def gpt2_attn_wrapper(
     :return: inner, func, the wrapped function and the original function
     :rtype: Tuple[Callable, Callable]
     """
-    batch_size = 512
+    batch_size = 16
     def inner(query, key, value, *args, **kwargs):
         nonlocal c_proj
         nonlocal target_ids
         nonlocal vocab_embedding
         attn_output, attn_weights = func(query, key, value, *args, **kwargs)
-        max_value = -torch.inf
         with torch.no_grad():
             temp = attn_weights[...,None] * value[:,:,None]
             if len(c_proj.shape) == 2:
@@ -182,16 +182,15 @@ def gpt2_attn_wrapper(
             h, t, p, o = temp.shape
             temp = einops.rearrange(temp, 'h t p o -> (h t) p o')
             new_temp = []
-            for i in range(temp.shape[0] // batch_size + 1):
-                out = (temp[i*batch_size:(i+1)*batch_size] @ vocab_embedding).to('cpu')
+            for i in tqdm(range(temp.shape[0] // batch_size + 1)):
+                out = (temp[i*batch_size:(i+1)*batch_size] @ vocab_embedding)
                 out -= out.mean(dim=-1, keepdim=True)
-                # scale over src, dst, vocab and head
-                max_value = max(max_value, torch.amax(out.abs())) # TODO is this right?
                 # select targets
                 out = out[...,torch.arange(len(target_ids)), target_ids]
-                new_temp.append(out)
+                new_temp.append(out.to('cpu'))
             temp = torch.cat(new_temp, dim=0)        
             temp = einops.rearrange(temp, '(h t) p -> h t p', h=h, t=t, p=len(target_ids))
+            max_value = torch.amax(temp.abs()).item()
             temp = temp / max_value
             
             save_ctx['logits'] = {

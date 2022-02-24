@@ -210,13 +210,14 @@ def compute_attn_logits(text, save_destination):
         tokenized_text = st.session_state.tokenizer.tokenize(text)
         tokenized_text = [token.replace("Ġ", " ") for token in tokenized_text]
         tokenized_text = [token.replace("Ċ", "\n") for token in tokenized_text]
+        tokenized_text = [token.replace("âĢĻ", "'") for token in tokenized_text]
         model_input = st.session_state.tokenizer.encode(text, return_tensors='pt').to(st.session_state.device)
         target_ids = st.session_state.tokenizer.encode(text)[1:]
         
         attn_hooks = [gpt_get_attention_hook(i, f'attn_layer_{i}') for i in range(st.session_state.num_layers)]
 
         for layer in range(st.session_state.num_layers):
-            
+            print(f"{layer = }")
             # wrap the _attn function to create logit attribution
             st.session_state.model.save_ctx[f'logit_layer_{layer}'] = dict()
             st.session_state.model.model.transformer.h[layer].attn._attn, old_fn= gpt2_attn_wrapper(
