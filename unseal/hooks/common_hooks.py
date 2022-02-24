@@ -166,6 +166,7 @@ def gpt2_attn_wrapper(
     :return: inner, func, the wrapped function and the original function
     :rtype: Tuple[Callable, Callable]
     """
+    batch_size = 1024
     def inner(query, key, value, *args, **kwargs):
         nonlocal c_proj
         nonlocal target_ids
@@ -176,13 +177,19 @@ def gpt2_attn_wrapper(
             if len(c_proj.shape) == 2:
                 c_proj = einops.rearrange(c_proj, '(head_dim num_heads) out_dim -> head_dim num_heads out_dim', num_heads=attn_output.shape[1])
             temp = torch.einsum('bhtpd,dho->bhtpo', temp, c_proj)
-            temp = vocab_embedding(temp)[0,:,:-1]
+            b, h, t, p, o = temp.shape
+            temp = einops.rearrange(temp, 'b h t p o -> (b h t p) o')
+            print('start stacking')
+            temp = torch.stack([(temp[i*batch_size:(i+1)*batch_size] @ vocab_embedding).to('cpu') for i in range(temp.shape[0]//batch_size + 1)], dim=0)
+            print('finished stacking')
+            temp = einops.rearrange(temp, '(b h t p) o -> b h t p o', b=b, h=h, t=t, p=p)
+            temp = temp[0,:,:-1]
             print(f"{temp.shape = }")
             temp -= temp.mean(dim=-1, keepdim=True)
             # scale over src, dst and vocab for each head
             temp = temp / temp.abs().amax(dim=[-3,-2,-1], keepdim=True)
             # select targets
-            temp = temp[...,torch.arange(len(target_ids)),target_ids].to('cpu')
+            temp = temp[...,torch.arange(len(target_ids)),target_ids]
             
             save_ctx['logits'] = {
                 'pos': temp.clamp(min=0, max=1),
