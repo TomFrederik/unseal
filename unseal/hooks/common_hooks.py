@@ -148,7 +148,7 @@ def gpt2_attn_wrapper(
     func: Callable, 
     save_ctx: Dict, 
     c_proj: torch.Tensor, 
-    vocab_matrix: torch.Tensor, 
+    vocab_embedding: torch.Tensor, 
     target_ids: torch.Tensor,
 ) -> Tuple[Callable, Callable]:
     """Wraps around the GPT2Attention._attn function to save the individual heads' logits.
@@ -166,19 +166,18 @@ def gpt2_attn_wrapper(
     :return: inner, func, the wrapped function and the original function
     :rtype: Tuple[Callable, Callable]
     """
-    vocab_matrix = vocab_matrix.to('cpu')
     def inner(query, key, value, *args, **kwargs):
         nonlocal c_proj
         nonlocal target_ids
-        nonlocal vocab_matrix
+        nonlocal vocab_embedding
         attn_output, attn_weights = func(query, key, value, *args, **kwargs)
         with torch.no_grad():
             temp = attn_weights[...,None] * value[:,:,None]
             if len(c_proj.shape) == 2:
                 c_proj = einops.rearrange(c_proj, '(head_dim num_heads) out_dim -> head_dim num_heads out_dim', num_heads=attn_output.shape[1])
             temp = torch.einsum('bhtpd,dho->bhtpo', temp, c_proj)
-            temp = temp.to('cpu')
-            temp = (temp @ vocab_matrix)[0,:,:-1]
+            temp = vocab_embedding(temp)[0,:,:-1]
+            print(f"{temp.shape = }")
             temp -= temp.mean(dim=-1, keepdim=True)
             # scale over src, dst and vocab for each head
             temp = temp / temp.abs().amax(dim=[-3,-2,-1], keepdim=True)

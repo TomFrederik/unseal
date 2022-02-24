@@ -223,7 +223,7 @@ def compute_attn_logits(text, save_destination):
                 st.session_state.model.model.transformer.h[layer].attn._attn, 
                 st.session_state.model.save_ctx[f'logit_layer_{layer}'], 
                 st.session_state.model.model.transformer.h[layer].attn.c_proj.weight,
-                st.session_state.model.model.transformer.wte.weight.T,
+                st.session_state.model.model.transformer.wte,
                 target_ids=target_ids,
             )
         
