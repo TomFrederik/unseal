@@ -215,6 +215,8 @@ def compute_attn_logits(text, save_destination):
         
         attn_hooks = [gpt_get_attention_hook(i, f'attn_layer_{i}') for i in range(st.session_state.num_layers)]
 
+        unembed = torch.nn.Linear(st.session_state.model.model.transformer.wte.weight[1], st.session_state.model.model.transformer.wte.weight[0], bias=False)
+        
         for layer in range(st.session_state.num_layers):
             
             # wrap the _attn function to create logit attribution
@@ -223,7 +225,7 @@ def compute_attn_logits(text, save_destination):
                 st.session_state.model.model.transformer.h[layer].attn._attn, 
                 st.session_state.model.save_ctx[f'logit_layer_{layer}'], 
                 st.session_state.model.model.transformer.h[layer].attn.c_proj.weight,
-                st.session_state.model.model.transformer.wte,
+                unembed,
                 target_ids=target_ids,
             )
         
