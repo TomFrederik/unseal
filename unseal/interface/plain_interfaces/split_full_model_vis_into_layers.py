@@ -14,7 +14,7 @@ def main(args):
         if f'col_{i}' in data:
             for j in range(len(data[f'col_{i}'])):
                 os.makedirs(f'{args.target_folder}/col_{i}', exist_ok=True)
-                with open(f'{args.target_folder}/col_{i}/layer_{j}.json', 'w') as f:
+                with open(f'{args.target_folder}/col_{i}/layer_{j}.txt', 'w') as f:
                     json.dump(data[f'col_{i}'][f'layer_{j}'], f)
         else:
             print(f"col_{i} not in data -> skipping")

@@ -3,7 +3,6 @@ import math
 from typing import Iterable, Callable, Optional, Union, List, Tuple, Dict
 
 import einops
-import opt_einsum
 import torch
 import torch.nn.functional as F
 from transformers.models.gpt_neo.modeling_gpt_neo import GPTNeoPreTrainedModel
