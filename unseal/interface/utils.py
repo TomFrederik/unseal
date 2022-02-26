@@ -1,5 +1,6 @@
 import importlib
 import json
+import gc
 from typing import List, Tuple, Optional, Union, Iterable, Callable, Dict
 
 import einops
@@ -210,7 +211,9 @@ def compute_attn_logits(text, save_destination):
         tokenized_text = st.session_state.tokenizer.tokenize(text)
         tokenized_text = [token.replace("Ġ", " ") for token in tokenized_text]
         tokenized_text = [token.replace("Ċ", "\n") for token in tokenized_text]
+        print(tokenized_text)
         tokenized_text = [token.replace("âĢĻ", "'") for token in tokenized_text]
+        print(tokenized_text)
         model_input = st.session_state.tokenizer.encode(text, return_tensors='pt').to(st.session_state.device)
         target_ids = st.session_state.tokenizer.encode(text)[1:]
         
@@ -228,7 +231,7 @@ def compute_attn_logits(text, save_destination):
                 target_ids=target_ids,
             )
         
-            st.session_state.model.forward(model_input, hooks=attn_hooks, output_attentions=True)
+            st.session_state.model.forward(model_input, hooks=[attn_hooks[layer]], output_attentions=True)
         
             # parse attentions
             attention = st.session_state.model.save_ctx[f"attn_layer_{layer}"]['attn'][0]
@@ -258,8 +261,15 @@ def compute_attn_logits(text, save_destination):
             save_destination[f'layer_{layer}'] = html_str
             
             # reset _attn function
+            del st.session_state.model.model.transformer.h[layer].attn._attn
             st.session_state.model.model.transformer.h[layer].attn._attn = old_fn
-        
+            with open(st.session_state.model_name + ".json", "w") as f: 
+                json.dump(st.session_state.visualization, f)
+
+            # garbage collection
+            gc.collect()
+            torch.cuda.empty_cache()
+
 def pad_logits(logits):
     logits = torch.cat([torch.zeros_like(logits[:,0][:,None]), logits], dim=1)
     logits = torch.cat([logits, torch.zeros_like(logits[:,:,0][:,:,None])], dim=2)

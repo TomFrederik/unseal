@@ -1,7 +1,9 @@
 # pre-implemented common hooks
+import math
 from typing import Iterable, Callable, Optional, Union, List, Tuple, Dict
 
 import einops
+import opt_einsum
 import torch
 import torch.nn.functional as F
 from transformers.models.gpt_neo.modeling_gpt_neo import GPTNeoPreTrainedModel
@@ -167,7 +169,7 @@ def gpt2_attn_wrapper(
     :return: inner, func, the wrapped function and the original function
     :rtype: Tuple[Callable, Callable]
     """
-    batch_size = 16
+    batch_size = 1
     def inner(query, key, value, *args, **kwargs):
         nonlocal c_proj
         nonlocal target_ids
@@ -177,25 +179,34 @@ def gpt2_attn_wrapper(
             temp = attn_weights[...,None] * value[:,:,None]
             if len(c_proj.shape) == 2:
                 c_proj = einops.rearrange(c_proj, '(head_dim num_heads) out_dim -> head_dim num_heads out_dim', num_heads=attn_output.shape[1])
+            c_proj = einops.rearrange(c_proj, 'h n o -> n h o')
+            print(f"{c_proj.shape = }")
             temp = temp[0,:,:-1] # could this be done earlier?
-            temp = torch.einsum('htpd,dho->htpo', temp, c_proj)
-            h, t, p, o = temp.shape
-            temp = einops.rearrange(temp, 'h t p o -> (h t) p o')
+            print(f"{temp.shape = }")
             new_temp = []
-            for i in tqdm(range(temp.shape[0] // batch_size + 1)):
-                out = (temp[i*batch_size:(i+1)*batch_size] @ vocab_embedding)
-                out -= out.mean(dim=-1, keepdim=True)
-                # select targets
-                out = out[...,torch.arange(len(target_ids)), target_ids]
-                new_temp.append(out.to('cpu'))
-            temp = torch.cat(new_temp, dim=0)        
+            for head in range(temp.shape[0]):
+                new_temp.append(torch.einsum('bcd,df->bcf', temp[head], c_proj[head]))
+
+            t, p, o = new_temp[0].shape
+            h = len(new_temp)
+            temp = []
+            for i in tqdm(range(h)):
+                for j in range(math.ceil(t // batch_size)):
+                    out = (new_temp[i][j*batch_size:(j+1)*batch_size] @ vocab_embedding)
+                    out -= out.mean(dim=-1, keepdim=True)
+                    # select targets
+                    out = out[...,torch.arange(len(target_ids)), target_ids]
+                    temp.append(out.to('cpu'))
+            print(f"{len(temp) = }")
+            print(f"{temp[0].shape = }")
+            temp = torch.cat(temp, dim=0)        
             temp = einops.rearrange(temp, '(h t) p -> h t p', h=h, t=t, p=len(target_ids))
             max_value = torch.amax(temp.abs()).item()
             temp = temp / max_value
             
             save_ctx['logits'] = {
-                'pos': temp.clamp(min=0, max=1),
-                'neg': -1 * temp.clamp(min=-1, max=0),
+                'pos': temp.clamp(min=0, max=1).detach(),
+                'neg': -1 * temp.clamp(min=-1, max=0).detach(),
             }
          
         return attn_output, attn_weights
