@@ -130,3 +130,6 @@ dmypy.json
 
 
 testing.py
+
+*visualizations/
+*gpt2*json

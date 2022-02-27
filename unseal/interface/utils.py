@@ -1,5 +1,6 @@
 import importlib
 import json
+import gc
 from typing import List, Tuple, Optional, Union, Iterable, Callable, Dict
 
 import einops
@@ -214,20 +215,29 @@ def compute_attn_logits(text, save_destination):
         target_ids = st.session_state.tokenizer.encode(text)[1:]
         
         attn_hooks = [gpt_get_attention_hook(i, f'attn_layer_{i}') for i in range(st.session_state.num_layers)]
+        st.session_state.model.forward(model_input, hooks=attn_hooks, output_attentions=True)
 
         for layer in range(st.session_state.num_layers):
-            
             # wrap the _attn function to create logit attribution
             st.session_state.model.save_ctx[f'logit_layer_{layer}'] = dict()
-            st.session_state.model.model.transformer.h[layer].attn._attn, old_fn= gpt2_attn_wrapper(
-                st.session_state.model.model.transformer.h[layer].attn._attn, 
-                st.session_state.model.save_ctx[f'logit_layer_{layer}'], 
-                st.session_state.model.model.transformer.h[layer].attn.c_proj.weight,
-                st.session_state.model.model.transformer.wte.weight.T,
-                target_ids=target_ids,
-            )
+            if hasattr(st.session_state.model.model.transformer.h[layer].attn, "_attn"):
+                st.session_state.model.model.transformer.h[layer].attn._attn, old_fn= gpt2_attn_wrapper(
+                    st.session_state.model.model.transformer.h[layer].attn._attn, 
+                    st.session_state.model.save_ctx[f'logit_layer_{layer}'], 
+                    st.session_state.model.model.transformer.h[layer].attn.c_proj.weight,
+                    st.session_state.model.model.lm_head.weight.T,
+                    target_ids=target_ids,
+                )
+            else: # gpt neo architecture
+                st.session_state.model.model.transformer.h[layer].attn.attention._attn, old_fn= gpt2_attn_wrapper(
+                    st.session_state.model.model.transformer.h[layer].attn.attention._attn, 
+                    st.session_state.model.save_ctx[f'logit_layer_{layer}'], 
+                    st.session_state.model.model.transformer.h[layer].attn.attention.out_proj.weight,
+                    st.session_state.model.model.lm_head.weight.T,
+                    target_ids=target_ids,
+                )
         
-            st.session_state.model.forward(model_input, hooks=attn_hooks, output_attentions=True)
+            st.session_state.model.forward(model_input, hooks=[])
         
             # parse attentions
             attention = st.session_state.model.save_ctx[f"attn_layer_{layer}"]['attn'][0]
@@ -257,8 +267,19 @@ def compute_attn_logits(text, save_destination):
             save_destination[f'layer_{layer}'] = html_str
             
             # reset _attn function
-            st.session_state.model.model.transformer.h[layer].attn._attn = old_fn
-        
+            if hasattr(st.session_state.model.model.transformer.h[layer].attn, "_attn"):
+                del st.session_state.model.model.transformer.h[layer].attn._attn
+                st.session_state.model.model.transformer.h[layer].attn._attn = old_fn
+            else: #gpt neo 
+                del st.session_state.model.model.transformer.h[layer].attn.attention._attn
+                st.session_state.model.model.transformer.h[layer].attn.attention._attn = old_fn
+            with open(st.session_state.model_name + ".json", "w") as f: 
+                json.dump(st.session_state.visualization, f)
+
+            # garbage collection
+            gc.collect()
+            torch.cuda.empty_cache()
+
 def pad_logits(logits):
     logits = torch.cat([torch.zeros_like(logits[:,0][:,None]), logits], dim=1)
     logits = torch.cat([logits, torch.zeros_like(logits[:,:,0][:,:,None])], dim=2)

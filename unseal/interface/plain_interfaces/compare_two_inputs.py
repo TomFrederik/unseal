@@ -57,6 +57,6 @@ if st.session_state.model is not None:
                 for layer in range(st.session_state.num_layers):
                     if f"layer_{layer}" in st.session_state.visualization[f"col_{col_idx}"]:
                         with st.expander(f'Layer {layer}'):
-                            st.components.v1.html(st.session_state.visualization[f"col_{col_idx}"][f"layer_{layer}"], height=600)
+                            st.components.v1.html(st.session_state.visualization[f"col_{col_idx}"][f"layer_{layer}"], height=600, scrolling=True)
         else:
             st.session_state.visualization[f"col_{col_idx}"] = dict()
