@@ -211,6 +211,9 @@ def compute_attn_logits(text, save_destination):
         tokenized_text = st.session_state.tokenizer.tokenize(text)
         tokenized_text = [token.replace("Ġ", " ") for token in tokenized_text]
         tokenized_text = [token.replace("Ċ", "\n") for token in tokenized_text]
+        print(tokenized_text)
+        tokenized_text = [token.replace("âĢĻ", "'") for token in tokenized_text]
+        print(tokenized_text)
         model_input = st.session_state.tokenizer.encode(text, return_tensors='pt').to(st.session_state.device)
         target_ids = st.session_state.tokenizer.encode(text)[1:]
         
@@ -218,6 +221,10 @@ def compute_attn_logits(text, save_destination):
         st.session_state.model.forward(model_input, hooks=attn_hooks, output_attentions=True)
 
         for layer in range(st.session_state.num_layers):
+<<<<<<< HEAD
+=======
+            print(f"{layer = }")
+>>>>>>> 1d6a3bd2696cda6f8f643a36e055a436526f3362
             # wrap the _attn function to create logit attribution
             st.session_state.model.save_ctx[f'logit_layer_{layer}'] = dict()
             if hasattr(st.session_state.model.model.transformer.h[layer].attn, "_attn"):
@@ -237,7 +244,11 @@ def compute_attn_logits(text, save_destination):
                     target_ids=target_ids,
                 )
         
+<<<<<<< HEAD
             st.session_state.model.forward(model_input, hooks=[])
+=======
+            st.session_state.model.forward(model_input, hooks=[attn_hooks[layer]], output_attentions=True)
+>>>>>>> 1d6a3bd2696cda6f8f643a36e055a436526f3362
         
             # parse attentions
             attention = st.session_state.model.save_ctx[f"attn_layer_{layer}"]['attn'][0]
@@ -267,12 +278,17 @@ def compute_attn_logits(text, save_destination):
             save_destination[f'layer_{layer}'] = html_str
             
             # reset _attn function
+<<<<<<< HEAD
             if hasattr(st.session_state.model.model.transformer.h[layer].attn, "_attn"):
                 del st.session_state.model.model.transformer.h[layer].attn._attn
                 st.session_state.model.model.transformer.h[layer].attn._attn = old_fn
             else: #gpt neo 
                 del st.session_state.model.model.transformer.h[layer].attn.attention._attn
                 st.session_state.model.model.transformer.h[layer].attn.attention._attn = old_fn
+=======
+            del st.session_state.model.model.transformer.h[layer].attn._attn
+            st.session_state.model.model.transformer.h[layer].attn._attn = old_fn
+>>>>>>> 1d6a3bd2696cda6f8f643a36e055a436526f3362
             with open(st.session_state.model_name + ".json", "w") as f: 
                 json.dump(st.session_state.visualization, f)
 
