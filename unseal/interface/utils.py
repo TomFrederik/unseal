@@ -164,6 +164,7 @@ def grokking_get_attention_hook(layer: int, key: str, heads: Optional[Union[int,
 ####
 
 def compute_attn_logits(text, save_destination):
+    print("Attention is working")
     if st.session_state.model_name in st.session_state.registered_model_names:
         tokenized_text = st.session_state.tokenizer.tokenize(text)
         model_input = st.session_state.tokenizer.encode(text).to(st.session_state.device)
@@ -221,7 +222,7 @@ def compute_attn_logits(text, save_destination):
         st.session_state.model.forward(model_input, hooks=attn_hooks, output_attentions=True)
 
         for layer in range(st.session_state.num_layers):
-            print(f"{layer})
+            print(f"{layer}")
             # wrap the _attn function to create logit attribution
             st.session_state.model.save_ctx[f'logit_layer_{layer}'] = dict()
             if hasattr(st.session_state.model.model.transformer.h[layer].attn, "_attn"):
@@ -242,8 +243,8 @@ def compute_attn_logits(text, save_destination):
                 )
         
             st.session_state.model.forward(model_input, hooks=[])
+
             st.session_state.model.forward(model_input, hooks=[attn_hooks[layer]], output_attentions=True)
-        
             # parse attentions
             attention = st.session_state.model.save_ctx[f"attn_layer_{layer}"]['attn'][0]
             attention = einops.rearrange(attention, 'h n1 n2 -> n1 n2 h')
@@ -272,17 +273,14 @@ def compute_attn_logits(text, save_destination):
             save_destination[f'layer_{layer}'] = html_str
             
             # reset _attn function
-            
             if hasattr(st.session_state.model.model.transformer.h[layer].attn, "_attn"):
                 del st.session_state.model.model.transformer.h[layer].attn._attn
                 st.session_state.model.model.transformer.h[layer].attn._attn = old_fn
             else: #gpt neo 
                 del st.session_state.model.model.transformer.h[layer].attn.attention._attn
                 st.session_state.model.model.transformer.h[layer].attn.attention._attn = old_fn
-
             del st.session_state.model.model.transformer.h[layer].attn._attn
             st.session_state.model.model.transformer.h[layer].attn._attn = old_fn
-
             with open(st.session_state.model_name + ".json", "w") as f: 
                 json.dump(st.session_state.visualization, f)
 
@@ -308,8 +306,8 @@ def text_change(col_idx: Union[int, List[int]]):
     if text is None or len(text) == 0:
         return
             
-    compute_attn_logits(text, st.session_state.visualization[f'col_{col_idx}'])
-
+        compute_attn_logits(text, st.session_state.visualization[f'col_{col_idx}'])
+        
 def create_model_config(model_names):
     with st.form('model_config'):
         st.write('## Model Config')
