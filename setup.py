@@ -11,8 +11,8 @@ setup(
     install_requires=[
         'torch>=1.10.1',
         'einops>=0.3.2',
-        'numpy>=1.21.2',
-        'transformers>=4.16.0',
+        'numpy',
+        'transformers',
         'tqdm',
         'matplotlib',
         'streamlit',
