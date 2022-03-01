@@ -9,7 +9,7 @@ setup(
     packages=find_packages(exclude=[]),
     python_requires='>=3.6.0',
     install_requires=[
-        'torch>=1.10.1',
+        'torch',
         'einops>=0.3.2',
         'numpy',
         'transformers',
