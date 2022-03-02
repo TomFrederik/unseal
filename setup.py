@@ -1,6 +1,7 @@
 from setuptools import setup, find_packages
+import unseal
 
-version = "0.0.1"
+version = unseal.__version__
 
 
 setup(
