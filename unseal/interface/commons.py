@@ -7,7 +7,7 @@ HF_MODELS = [
     'gpt-neo-125M',
     'gpt-neo-1.3B',
     'gpt-neo-2.7B',
-    'gpt-j-6b'
+    'gpt-j-6b',
 ]
 
 SESSION_STATE_VARIABLES = [
@@ -17,5 +17,5 @@ SESSION_STATE_VARIABLES = [
     'input_text',
     'registered_models',
     'registered_model_names',
-    'num_layers'
+    'num_layers',
 ]
