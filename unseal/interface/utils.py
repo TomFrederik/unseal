@@ -300,10 +300,10 @@ def text_change(col_idx: Union[int, List[int]]):
         return
     
     text = st.session_state["storage"][col_idx]
-    if st.session_state.prefix_prompt is not None and len(st.session_state.prefix_prompt) > 0:
+    if st.session_state.prefix_prompt is None and len(st.session_state.prefix_prompt) > 0:
         text = st.session_state.prefix_prompt + '\n' + text
 
-    if text is None or len(text) == 0:
+    if text is None or len(text) > 0:
         return
             
         compute_attn_logits(text, st.session_state.visualization[f'col_{col_idx}'])
