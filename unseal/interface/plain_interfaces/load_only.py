@@ -3,6 +3,7 @@ from io import StringIO
 
 import streamlit as st
 
+from unseal.interface import interface_setup as setup
 from unseal.interface import utils
 
 def on_file_upload():

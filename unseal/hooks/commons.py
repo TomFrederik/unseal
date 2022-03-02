@@ -5,7 +5,6 @@ import torch
 
 from . import util
 
-
 Hook = namedtuple('Hook', 'layer_name func key')
 
 class HookedModel(torch.nn.Module):
