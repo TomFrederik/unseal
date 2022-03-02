@@ -117,8 +117,7 @@ def logit_hook(
     target_slice = util.create_slice(f"{target},:")
     
     # load the relevant part of the vocab matrix
-    vocab_matrix = model.structure['children']['transformer']['children']['wte']['module'].weight[target_slice].T
-    
+    vocab_matrix = model.structure['children']['lm_head']['module'].weight[target_slice].T
         
     if split_heads:
         if isinstance(model.model, GPTNeoPreTrainedModel):
@@ -146,14 +145,16 @@ def logit_hook(
     
     return hook
 
-def gpt2_attn_wrapper(
+def gpt_attn_wrapper(
     func: Callable, 
     save_ctx: Dict, 
     c_proj: torch.Tensor, 
     vocab_embedding: torch.Tensor, 
     target_ids: torch.Tensor,
+    batch_size: int = 16,
 ) -> Tuple[Callable, Callable]:
-    """Wraps around the GPT2Attention._attn function to save the individual heads' logits.
+    """Wraps around the [AttentionBlock]._attn function to save the individual heads' logits.
+    This is necessary because the individual heads' logits are not available on a module level and thus not accessible via a hook.
 
     :param func: original _attn function
     :type func: Callable
@@ -165,10 +166,12 @@ def gpt2_attn_wrapper(
     :type vocab_matrix: torch.Tensor
     :param target_ids: indices of the target tokens for which the logits are computed
     :type target_ids: torch.Tensor
+    :param batch_size: batch size to reduce compute cost
+    :type batch_size: int
     :return: inner, func, the wrapped function and the original function
     :rtype: Tuple[Callable, Callable]
     """
-    batch_size = 16
+    # TODO Find a smarter/more efficient way of implementing this function
     def inner(query, key, value, *args, **kwargs):
         nonlocal c_proj
         nonlocal target_ids
@@ -184,8 +187,8 @@ def gpt2_attn_wrapper(
             for head in tqdm(range(temp.shape[0])):
                 for i in range(math.ceil(temp.shape[1] / batch_size)):
                     out = temp[head, i*batch_size:(i+1)*batch_size] @ c_proj[head]
-                    out = out @ vocab_embedding
-                    out -= out.mean(dim=-1, keepdim=True)
+                    out = out @ vocab_embedding # compute logits
+                    out -= out.mean(dim=-1, keepdim=True) # center logits
                     # select targets
                     out = out[...,torch.arange(len(target_ids)), target_ids].to('cpu')
                     new_temp.append(out)
@@ -197,7 +200,6 @@ def gpt2_attn_wrapper(
             save_ctx['logits'] = {
                 'pos': (new_temp/max_pos_value).clamp(min=0, max=1).detach(),
                 'neg': (new_temp/max_neg_value).clamp(min=-1, max=0).detach(),
-            }
-         
+            }         
         return attn_output, attn_weights
     return inner, func

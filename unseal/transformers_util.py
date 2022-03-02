@@ -61,4 +61,3 @@ def get_num_layers(model: HookedModel) -> int:
     :rtype: int
     """
     return len(model.structure['children']['transformer']['children']['h']['children'])
-

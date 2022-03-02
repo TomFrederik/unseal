@@ -4,21 +4,20 @@ import time
 import streamlit as st
 
 from unseal.interface import utils
+from unseal.interface import interface_setup as setup
 from unseal.interface.commons import SESSION_STATE_VARIABLES
 
 # perform startup tasks
-if 'startup_done' not in st.session_state:
-    st.session_state['startup_done'] = False
-    utils.startup(SESSION_STATE_VARIABLES, './registered_models.json')
+setup.startup(SESSION_STATE_VARIABLES, './registered_models.json')
 
 # create sidebar
 with st.sidebar:
-    utils.create_sidebar()
+    setup.create_sidebar()
     
     sample = st.checkbox('Enable sampling', value=False, key='sample')
     if sample:
-        utils.create_sample_sliders()
-        utils.on_sampling_config_change()
+        setup.create_sample_sliders()
+        setup.on_sampling_config_change()
     
     if "storage" not in st.session_state:
         st.session_state["storage"] = [""]
