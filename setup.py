@@ -23,4 +23,21 @@ setup(
     #         '"unseal compare" = unseal.commands.interfaces.compare_two_inputs:main',
     #     ]
     # },
+    description=(
+        "Unseal "
+        "Collection of infrastructure and tools for research in "
+        "transformer interpretability."
+    ),
+    author="The Unseal Team",
+    author_email="tlieberum@outlook.de",
+    url="unseal.readthedocs.io",
+    license="Apache License 2.0",
+    keywords=[
+        "pytorch",
+        "tensor",
+        "machine learning",
+        "neural networks",
+        "interpretability",
+        "transformers",
+    ],
 )
