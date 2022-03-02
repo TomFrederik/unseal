@@ -54,6 +54,7 @@ def grokking_get_attention_hook(layer: int, key: str, heads: Optional[Union[int,
 ####
 
 def compute_attn_logits(text, save_destination):
+    print("Attention is working")
     if st.session_state.model_name in st.session_state.registered_model_names:
         tokenized_text = st.session_state.tokenizer.tokenize(text)
         model_input = st.session_state.tokenizer.encode(text).to(st.session_state.device)
@@ -110,6 +111,7 @@ def compute_attn_logits(text, save_destination):
 
         # compute logits
         for layer in range(st.session_state.num_layers):
+
             # wrap the _attn function to create logit attribution
             st.session_state.model.save_ctx[f'logit_layer_{layer}'] = dict()
             wrap_gpt_attn(layer, target_ids)
@@ -172,8 +174,6 @@ def text_change(col_idx: Union[int, List[int]]):
     if text is None or len(text) == 0:
         return
             
-    compute_attn_logits(text, st.session_state.visualization[f'col_{col_idx}'])
-
 def wrap_gpt_attn(layer, target_ids):
     st.session_state.model.m
     if hasattr(st.session_state.model.model.transformer.h[layer].attn, "_attn"):
