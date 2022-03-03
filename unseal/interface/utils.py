@@ -173,7 +173,9 @@ def text_change(col_idx: Union[int, List[int]]):
 
     if text is None or len(text) == 0:
         return
-            
+    
+    compute_attn_logits(text, st.session_state.visualization[f'col_{col_idx}'])
+    
 def wrap_gpt_attn(layer, target_ids):
     st.session_state.model.m
     if hasattr(st.session_state.model.model.transformer.h[layer].attn, "_attn"):
