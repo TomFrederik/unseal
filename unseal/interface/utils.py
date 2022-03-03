@@ -114,7 +114,7 @@ def compute_attn_logits(text, save_destination):
 
             # wrap the _attn function to create logit attribution
             st.session_state.model.save_ctx[f'logit_layer_{layer}'] = dict()
-            wrap_gpt_attn(layer, target_ids)
+            old_fn = wrap_gpt_attn(layer, target_ids)
 
             # forward pass
             st.session_state.model.forward(model_input, hooks=[])
@@ -195,6 +195,8 @@ def wrap_gpt_attn(layer, target_ids):
         )
     else:
         AttributeError(f'Layer {layer} has no _attn function')
+    
+    return old_fn
         
 
 def reset_attn_fn(layer, old_fn):
