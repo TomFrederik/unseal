@@ -177,7 +177,6 @@ def text_change(col_idx: Union[int, List[int]]):
     compute_attn_logits(text, st.session_state.visualization[f'col_{col_idx}'])
     
 def wrap_gpt_attn(layer, target_ids):
-    st.session_state.model.m
     if hasattr(st.session_state.model.model.transformer.h[layer].attn, "_attn"):
         st.session_state.model.model.transformer.h[layer].attn._attn, old_fn= gpt_attn_wrapper(
             st.session_state.model.model.transformer.h[layer].attn._attn, 
