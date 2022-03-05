@@ -72,19 +72,20 @@ A HookedModel also has special references to every layer which you can access vi
 
 You can see that each layer has its own identifying string (e.g. ``'2->2'``). If you want to only display the layer names you can simply call ``model.layers.keys()``.
 
-forward passes
---------------
+Hooked forward passes
+---------------------
 
 The most important feature of a HookedModel object is its modified ``forward`` method which allows a user to temporarily add a hook to the model, perform a forward pass
 and record the result in the context attribute of the HookedModel.
 
 For this, the forward method takes an additional ``hooks`` argument which is a ``list`` of ``Hooks`` which get registered. After the forward pass, the hooks are removed
 again (to ensure consistent behavior). Hooks have access to the ``save_ctx`` attribute of the HookedModel, so anything you want to access later goes there and can
-be recalled via ``model.save_ctx[your_hook_key]``
+be recalled via ``model.save_ctx[your_hook_key]``. Beware that the context attribute does not get reset automatically, so running a lot of
+different hooks can fill up your memory.
 
 
-Writing hooks
-===============
+Writing your own hooks
+======================
 
 As mentioned above, hooks are triples ``(layer_name, func, key)``. After choosing the attachment point (the ``layer_name``, an element from ``model.layers.keys()``), 
 you need to implement the hooking function. 
