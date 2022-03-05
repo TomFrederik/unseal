@@ -32,7 +32,6 @@ def on_text_change(col_idx: Union[int, List[int]], text_key):
     else:    
         st.session_state["storage"][col_idx] = st.session_state[text_key]
         text_change(col_idx)
-    
 
 ## TODO
 # move those two functions somewhere else
@@ -53,8 +52,8 @@ def grokking_get_attention_hook(layer: int, key: str, heads: Optional[Union[int,
     return Hook(f'transformer->{layer}->self_attn', func, key)    
 ####
 
+
 def compute_attn_logits(text, save_destination):
-    print("Attention is working")
     if st.session_state.model_name in st.session_state.registered_model_names:
         tokenized_text = st.session_state.tokenizer.tokenize(text)
         model_input = st.session_state.tokenizer.encode(text).to(st.session_state.device)
