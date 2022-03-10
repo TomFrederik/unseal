@@ -11,12 +11,12 @@ from ..hooks import Hook
 from ..hooks.common_hooks import gpt_get_attention_hook, gpt_attn_wrapper
 from ..hooks import util 
 
-def sample_text(col_idx, key):
+def sample_text(model, col_idx, key):
     text = st.session_state[key]
     if st.session_state.prefix_prompt is not None and len(st.session_state.prefix_prompt) > 0:
         text = st.session_state.prefix_prompt + '\n' + text
     model_inputs = st.session_state.tokenizer.encode(text, return_tensors='pt').to(st.session_state.device)
-    output = st.session_state.model.model.generate(model_inputs, **st.session_state.sample_kwargs, min_length=0, output_attentions=True)
+    output = model.model.generate(model_inputs, **st.session_state.sample_kwargs, min_length=0, output_attentions=True)
     output_text = st.session_state.tokenizer.decode(output[0], skip_special_tokens=True)
     if st.session_state.prefix_prompt is not None and len(st.session_state.prefix_prompt) > 0:
         output_text = output_text.lstrip(st.session_state.prefix_prompt + '\n')
@@ -118,7 +118,7 @@ def compute_attn_logits(
             
             # reset _attn function
             # TODO
-            # reset_attn_fn(layer, old_fn)
+            # reset_attn_fn(model, layer, old_fn)
             
             # save progress so far
             # with open(st.session_state.model_name + ".json", "w") as f: 
@@ -143,7 +143,7 @@ def compute_attn_logits(
 
             # wrap the _attn function to create logit attribution
             model.save_ctx[f'logit_layer_{layer}'] = dict()
-            old_fn = wrap_gpt_attn(layer, target_ids)
+            old_fn = wrap_gpt_attn(model, layer, target_ids)
 
             # forward pass
             model.forward(model_input, hooks=[])
@@ -175,7 +175,7 @@ def compute_attn_logits(
             html_storage[f'layer_{layer}'] = html_str
             
             # reset _attn function
-            reset_attn_fn(layer, old_fn)
+            reset_attn_fn(model, layer, old_fn)
             
             # save progress so far
             with open(save_path, "w") as f: 
@@ -216,21 +216,21 @@ def text_change(col_idx: Union[int, List[int]]):
         st.session_state.registered_model_names,
     )
     
-def wrap_gpt_attn(layer, target_ids):
-    if hasattr(st.session_state.model.model.transformer.h[layer].attn, "_attn"):
-        st.session_state.model.model.transformer.h[layer].attn._attn, old_fn= gpt_attn_wrapper(
-            st.session_state.model.model.transformer.h[layer].attn._attn, 
-            st.session_state.model.save_ctx[f'logit_layer_{layer}'], 
-            st.session_state.model.model.transformer.h[layer].attn.c_proj.weight,
-            st.session_state.model.model.lm_head.weight.T,
+def wrap_gpt_attn(model, layer, target_ids):
+    if hasattr(model.model.transformer.h[layer].attn, "_attn"):
+        model.model.transformer.h[layer].attn._attn, old_fn= gpt_attn_wrapper(
+            model.model.transformer.h[layer].attn._attn, 
+            model.save_ctx[f'logit_layer_{layer}'], 
+            model.model.transformer.h[layer].attn.c_proj.weight,
+            model.model.lm_head.weight.T,
             target_ids=target_ids,
         )
-    elif hasattr(st.session_state.model.model.transformer.h[layer].attn.attention, "_attn"):
-        st.session_state.model.model.transformer.h[layer].attn.attention._attn, old_fn= gpt_attn_wrapper(
-            st.session_state.model.model.transformer.h[layer].attn.attention._attn, 
-            st.session_state.model.save_ctx[f'logit_layer_{layer}'], 
-            st.session_state.model.model.transformer.h[layer].attn.attention.out_proj.weight,
-            st.session_state.model.model.lm_head.weight.T,
+    elif hasattr(model.model.transformer.h[layer].attn.attention, "_attn"):
+        model.model.transformer.h[layer].attn.attention._attn, old_fn= gpt_attn_wrapper(
+            model.model.transformer.h[layer].attn.attention._attn, 
+            model.save_ctx[f'logit_layer_{layer}'], 
+            model.model.transformer.h[layer].attn.attention.out_proj.weight,
+            model.model.lm_head.weight.T,
             target_ids=target_ids,
         )
     else:
@@ -239,12 +239,12 @@ def wrap_gpt_attn(layer, target_ids):
     return old_fn
         
 
-def reset_attn_fn(layer, old_fn):
-    if hasattr(st.session_state.model.model.transformer.h[layer].attn, "_attn"):
-        del st.session_state.model.model.transformer.h[layer].attn._attn
-        st.session_state.model.model.transformer.h[layer].attn._attn = old_fn
-    elif hasattr(st.session_state.model.model.transformer.h[layer].attn.attention, "_attn"):
-        del st.session_state.model.model.transformer.h[layer].attn.attention._attn
-        st.session_state.model.model.transformer.h[layer].attn.attention._attn = old_fn
+def reset_attn_fn(model, layer, old_fn):
+    if hasattr(model.model.transformer.h[layer].attn, "_attn"):
+        del model.model.transformer.h[layer].attn._attn
+        model.model.transformer.h[layer].attn._attn = old_fn
+    elif hasattr(model.model.transformer.h[layer].attn.attention, "_attn"):
+        del model.model.transformer.h[layer].attn.attention._attn
+        model.model.transformer.h[layer].attn.attention._attn = old_fn
     else:
         AttributeError(f'Layer {layer} has no _attn function')
