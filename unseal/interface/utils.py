@@ -142,19 +142,19 @@ def compute_attn_logits(
         for layer in range(num_layers):
 
             # wrap the _attn function to create logit attribution
-            st.session_state.model.save_ctx[f'logit_layer_{layer}'] = dict()
+            model.save_ctx[f'logit_layer_{layer}'] = dict()
             old_fn = wrap_gpt_attn(layer, target_ids)
 
             # forward pass
-            st.session_state.model.forward(model_input, hooks=[])
+            model.forward(model_input, hooks=[])
         
             # parse attentions for this layer
-            attention = st.session_state.model.save_ctx[f"attn_layer_{layer}"]['attn'][0]
+            attention = model.save_ctx[f"attn_layer_{layer}"]['attn'][0]
             attention = einops.rearrange(attention, 'h n1 n2 -> n1 n2 h')
 
             # parse logits
             if model_input.shape[1] > 1: # otherwise we don't have any logit attribution
-                logits = st.session_state.model.save_ctx[f'logit_layer_{layer}']['logits']
+                logits = model.save_ctx[f'logit_layer_{layer}']['logits']
                 pos_logits = logits['pos']
                 neg_logits = logits['neg']
                 pos_logits = pad_logits(pos_logits)
@@ -185,6 +185,8 @@ def compute_attn_logits(
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+            
+        return html_storage
 
 def pad_logits(logits):
     logits = torch.cat([torch.zeros_like(logits[:,0][:,None]), logits], dim=1)
