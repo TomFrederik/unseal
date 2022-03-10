@@ -14,7 +14,7 @@ def load_from_pretrained(
     load_model: Optional[bool] = True, 
     load_tokenizer: Optional[bool] = True, 
     load_config: Optional[bool] = True,
-    load_in_half_prec: Optional[bool] = False,
+    low_cpu_mem_usage: Optional[bool] = False,
 ) -> Tuple[AutoModelForCausalLM, AutoTokenizer, AutoConfig]:
     """Load a pretrained model from huggingface's transformer library
 
@@ -28,8 +28,8 @@ def load_from_pretrained(
     :type load_tokenizer: Optional[bool], optional
     :param load_config: Whether to load the config file, defaults to True
     :type load_config: Optional[bool], optional
-    :param load_in_half_prec: Whether to load the model in half precision, defaults to False
-    :type load_in_half_prec: bool, optional
+    :param low_cpu_mem_usage: Whether to use low-memory mode, experimental feature of HF, defaults to False
+    :type low_cpu_mem_usage: bool, optional
     :return: model, tokenizer, config. Returns None values for those elements which were not loaded.
     :rtype: Tuple[AutoModelForCausalLM, AutoTokenizer, AutoConfig]
     """
@@ -37,19 +37,19 @@ def load_from_pretrained(
         try:
             logging.info(f'Loading model {model_name}')
 
-            model = AutoModelForCausalLM.from_pretrained(model_name, load_in_half_prec=load_in_half_prec) if load_model else None        
+            model = AutoModelForCausalLM.from_pretrained(model_name, low_cpu_mem_usage=low_cpu_mem_usage) if load_model else None        
             tokenizer = AutoTokenizer.from_pretrained(model_name) if load_tokenizer else None
             config = AutoConfig.from_pretrained(model_name) if load_config else None
 
         except (RepositoryNotFoundError, OSError) as error:
             logging.warning("Couldn't find model in default folder. Trying EleutherAI/...")
 
-            model = AutoModelForCausalLM.from_pretrained(f'EleutherAI/{model_name}', load_in_half_prec=load_in_half_prec) if load_model else None
+            model = AutoModelForCausalLM.from_pretrained(f'EleutherAI/{model_name}', low_cpu_mem_usage=low_cpu_mem_usage) if load_model else None
             tokenizer = AutoTokenizer.from_pretrained(f'EleutherAI/{model_name}') if load_tokenizer else None
             config = AutoConfig.from_pretrained(f'EleutherAI/{model_name}') if load_config else None
 
     else:
-        model = AutoModelForCausalLM.from_pretrained(os.path.join(model_dir, model_name), load_in_half_prec=load_in_half_prec) if load_model else None        
+        model = AutoModelForCausalLM.from_pretrained(os.path.join(model_dir, model_name), low_cpu_mem_usage=low_cpu_mem_usage) if load_model else None        
         tokenizer = AutoTokenizer.from_pretrained(os.path.join(model_dir, model_name)) if load_tokenizer else None
         config = AutoConfig.from_pretrained(os.path.join(model_dir, model_name)) if load_config else None
 
