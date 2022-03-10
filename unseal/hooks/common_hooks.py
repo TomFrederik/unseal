@@ -26,7 +26,7 @@ def save_output(save_ctx: dict, input: torch.Tensor, output: torch.Tensor):
         save_ctx['output'] = util.recursive_to_device(output, 'cpu')
 
 
-def replace_activation(indices: str, replacement_tensor: torch.Tensor) -> Callable:
+def replace_activation(indices: str, replacement_tensor: torch.Tensor, tuple_index: int = None) -> Callable:
     """Creates a hook which replaces a module's activation (output) with a replacement tensor. 
     If there is a dimension mismatch, the replacement tensor is copied along the leading dimensions of the output.
 
@@ -37,16 +37,25 @@ def replace_activation(indices: str, replacement_tensor: torch.Tensor) -> Callab
     :type indices: str
     :param replacement_tensor: Tensor that is filled in.
     :type replacement_tensor: torch.Tensor
+    :param tuple_index: Index of the tuple in the output of the module.
+    :type tuple_index: int
     :return: Function that replaces part of a given tensor with replacement_tensor
     :rtype: Callable
     """
     slice_ = util.create_slice(indices)
     def func(save_ctx, input, output):
-        # add dummy dimensions if shape mismatch
-        diff = len(output[slice_].shape) - len(replacement_tensor.shape)
-        rep = replacement_tensor[(None,)*diff].to(output.device)
-        # replace part of tensor
-        output[slice_] = rep
+        if tuple_index is None:
+            # add dummy dimensions if shape mismatch
+            diff = len(output[slice_].shape) - len(replacement_tensor.shape)
+            rep = replacement_tensor[(None,)*diff].to(input.device)
+            # replace part of tensor
+            output[slice_] = rep
+        else:
+            # add dummy dimensions if shape mismatch
+            diff = len(output[tuple_index][slice_].shape) - len(replacement_tensor.shape)
+            rep = replacement_tensor[(None,)*diff].to(input.device)
+            # replace part of tensor
+            output[tuple_index][slice_] = rep
         return output
 
     return func

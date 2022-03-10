@@ -57,7 +57,7 @@ def generate_logit_lense(
     
     # run model
     model.forward(tokenized_sentence, hooks=logit_hooks)
-    logits = torch.stack([model.save_ctx[str(layer) + '_logits']['logits'][0] for layer in range(num_layers)], dim=0)
+    logits = torch.stack([model.save_ctx[str(layer) + '_logits']['logits'] for layer in range(num_layers)], dim=0)
     logits = F.log_softmax(logits, dim=-1)
     
     # compute ranks and kld
@@ -70,9 +70,12 @@ def generate_logit_lense(
 
     if kl_div: # Note: logits are already normalized internally by the logit_hook
         kl_div = F.kl_div(logits, logits[-1][None], reduction='none', log_target=True).sum(dim=-1)
+        kl_div = kl_div[:, torch.arange(len(targets)), targets]
     else:
         kl_div = None    
+        
+    logits = logits[:, torch.arange(len(targets)), targets]
     
-    return logits[:,:-1], ranks, kl_div[:,:-1]
+    return logits, ranks, kl_div
 
 

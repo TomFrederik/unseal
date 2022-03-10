@@ -1,3 +1,5 @@
 {
-    "restructuredtext.confPath": "${workspaceFolder}/docs/source"
+    "restructuredtext.confPath": "${workspaceFolder}/docs/source",
+    "esbonio.server.enabled": false,
+    "esbonio.sphinx.confDir": "/home/aric/Desktop/Projects/unseal/docs/source"
 }
