@@ -12,6 +12,8 @@ Welcome to Unseal's documentation!
 
 Unseal wants to help you get started in mechanistic interpretability research on transformers!
 
+Install Unseal by following the instructions on the :ref:`installation page <installing_unseal>`.
+
 If you are new to Unseal, you should start by reading the :ref:`getting started <getting_started>` guide.
 
 
@@ -19,6 +21,7 @@ If you are new to Unseal, you should start by reading the :ref:`getting started 
    :maxdepth: 1
    :caption: Tutorials and Guides
 
+   tutorials/installation
    tutorials/getting_started
    tutorials/hooking
 

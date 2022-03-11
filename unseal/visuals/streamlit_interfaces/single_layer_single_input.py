@@ -6,9 +6,9 @@ import time
 
 import streamlit as st
 
-from unseal.interface import utils
-from unseal.interface import interface_setup as setup
-from unseal.interface.commons import SESSION_STATE_VARIABLES
+from unseal.visuals.streamlit_interfaces import utils
+from unseal.visuals.streamlit_interfaces import interface_setup as setup
+from unseal.visuals.streamlit_interfaces.commons import SESSION_STATE_VARIABLES
 
 # perform startup tasks
 setup.startup(SESSION_STATE_VARIABLES, './registered_models.json')

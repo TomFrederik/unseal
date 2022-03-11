@@ -7,8 +7,8 @@ import streamlit as st
 import torch
 
 from .commons import HF_MODELS
-from ..transformers_util import get_num_layers, load_from_pretrained
-from ..hooks import HookedModel
+from ...transformers_util import get_num_layers, load_from_pretrained
+from ...hooks import HookedModel
 
 def create_model_config(model_names):
     with st.form('model_config'):

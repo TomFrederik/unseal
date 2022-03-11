@@ -3,8 +3,8 @@ from io import StringIO
 
 import streamlit as st
 
-from unseal.interface import interface_setup as setup
-from unseal.interface import utils
+from unseal.visuals.streamlit_interfaces import interface_setup as setup
+from unseal.visuals import utils
 
 def on_file_upload():
     if st.session_state.uploaded_file is None:

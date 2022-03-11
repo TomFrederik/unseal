@@ -1,31 +1,31 @@
-unseal.interface package
+unseal.visuals package
 ========================
 
-This package handles GUI to work with models.
+This package creates graphical outputs, e.g. for displaying in GUIs.
 
 
-interface module
+visuals module
 -------------------------------
 
-.. automodule:: unseal.interface
+.. automodule:: unseal.visuals
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-interface.commons module
+visuals.commons module
 -------------------------------
 
-.. automodule:: unseal.interface.commons
+.. automodule:: unseal.visuals.commons
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-interface.utils module
+visuals.utils module
 -------------------------------
 
-.. automodule:: unseal.interface.utils
+.. automodule:: unseal.visuals.utils
    :members:
    :undoc-members:
    :show-inheritance:
