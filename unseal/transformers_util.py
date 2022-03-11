@@ -65,7 +65,5 @@ def get_num_layers(model: HookedModel, layer_key_prefix: Optional[str] = None) -
     """
     if layer_key_prefix is None:
         layer_key_prefix = ""
-    else:
-        layer_key_prefix += "->"
     
     return len(model.layers[f"{layer_key_prefix}"])
