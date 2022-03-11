@@ -58,6 +58,8 @@ def compute_attn_logits(
         layer_key_prefix = ""
     else:
         layer_key_prefix += "->"
+    if attn_suffix is None or attn_suffix == "":
+        attn_suffix = ""
     
     # tokenize without tokenization artifact -> needed for visualization
     tokenized_text = tokenizer.tokenize(text)
@@ -119,7 +121,7 @@ def compute_attn_logits(
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
             
-        return html_storage
+    return html_storage
 
 def pad_logits(logits):
     logits = torch.cat([torch.zeros_like(logits[:,0][:,None]), logits], dim=1)
@@ -194,12 +196,9 @@ def wrap_gpt_attn(
     # parse inputs
     if layer_key_prefix is None:
         layer_key_prefix = ""
-    else:
-        layer_key_prefix += "->"
-    if attn_suffix is None or attn_suffix == "":
+    if attn_suffix is None:
         attn_suffix = ""
-    else:
-        attn_suffix = f"->{attn_suffix}"
+
     attn_name = f"{layer_key_prefix}{layer}->{attn_name}{attn_suffix}"
     out_proj_name = attn_name + f"->{out_proj_name}"
     
@@ -225,12 +224,8 @@ def reset_attn_fn(
     # parse inputs
     if layer_key_prefix is None:
         layer_key_prefix = ""
-    else:
-        layer_key_prefix += "->"
-    if attn_suffix is None or attn_suffix == "":
+    if attn_suffix is None:
         attn_suffix = ""
-    else:
-        attn_suffix = f"->{attn_suffix}"
     
     # reset _attn function to old_fn
     del model.layers[f"{layer_key_prefix}{layer}->{attn_name}{attn_suffix}"]._attn

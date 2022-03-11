@@ -105,8 +105,6 @@ def create_attention_hook(
     """
     if layer_key_prefix is None:
         layer_key_prefix = ""
-    else:
-        layer_key_prefix = f"{layer_key_prefix}->"
         
     func = transformers_get_attention(heads, output_idx)
     return Hook(f'{layer_key_prefix}{layer}->{attn_name}', func, key)
@@ -149,8 +147,6 @@ def logit_hook(
     """
     if layer_key_prefix is None:
         layer_key_prefix = ""
-    else:
-        layer_key_prefix += "->"
         
     # generate slice
     if target is None:
