@@ -10,6 +10,8 @@
 Welcome to Unseal's documentation!
 ==================================
 
+Unseal wants to help you get started in mechanistic interpretability research on transformers!
+
 If you are new to Unseal, you should start by reading the :ref:`getting started <getting_started>` guide.
 
 

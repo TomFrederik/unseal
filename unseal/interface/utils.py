@@ -1,15 +1,16 @@
 import json
 import gc
-from typing import List, Optional, Union, Iterable, Callable
+from typing import List, Optional, Union, Iterable, Callable, Dict
 
 import einops
 import pysvelte as ps
 import streamlit as st
 import torch
+from transformers import AutoTokenizer
+from transformers.models.gpt_neo.modeling_gpt_neo import GPTNeoPreTrainedModel
 
-from ..hooks import Hook
+from ..hooks import Hook, HookedModel
 from ..hooks.common_hooks import create_attention_hook, gpt_attn_wrapper
-from ..hooks.grokking_hooks import grokking_get_attention_hook
 from ..hooks import util 
 
 def sample_text(model, col_idx, key):
@@ -36,14 +37,14 @@ def on_text_change(col_idx: Union[int, List[int]], text_key):
 
 
 def compute_attn_logits(
-    model, 
-    model_name, 
-    tokenizer, 
-    num_layers, 
-    text, 
-    html_storage, 
-    registered_model_names=None, 
-    save_path=None,
+    model: HookedModel,
+    model_name: str, 
+    tokenizer: AutoTokenizer, 
+    num_layers: int, 
+    text: str, 
+    html_storage: Dict, 
+    registered_model_names: Optional[List] = None, 
+    save_path: Optional[str] = None,
 ):
     if registered_model_names is None:
         registered_model_names = []
@@ -119,13 +120,22 @@ def compute_attn_logits(
         # compute attention pattern
         attn_hooks = [create_attention_hook(i, f'attn_layer_{i}', 2, 'attn', 'transformer->h') for i in range(num_layers)]
         model.forward(model_input, hooks=attn_hooks, output_attentions=True)
+        
+        # TODO move this somewhere else, like a config file?
+        
+        if isinstance(model.model, GPTNeoPreTrainedModel):
+            attn_suffix = 'attention'
+            out_proj_name = 'out_proj'
+        else:
+            attn_suffix = None
+            out_proj_name = 'c_proj'
 
         # compute logits
         for layer in range(num_layers):
 
             # wrap the _attn function to create logit attribution
             model.save_ctx[f'logit_layer_{layer}'] = dict()
-            old_fn = wrap_gpt_attn(model, layer, target_ids)
+            old_fn = wrap_gpt_attn(model, layer, target_ids, 'lm_head', 'attn', attn_suffix, 'transformer->h', out_proj_name)
 
             # forward pass
             model.forward(model_input, hooks=[])
@@ -157,7 +167,7 @@ def compute_attn_logits(
             html_storage[f'layer_{layer}'] = html_str
             
             # reset _attn function
-            reset_attn_fn(model, layer, old_fn)
+            reset_attn_fn(model, layer, old_fn, 'attn', attn_suffix, 'transformer->h')
             
             # save progress so far
             with open(save_path, "w") as f: 
@@ -198,35 +208,57 @@ def text_change(col_idx: Union[int, List[int]]):
         st.session_state.registered_model_names,
     )
     
-def wrap_gpt_attn(model, layer, target_ids):
-    if hasattr(model.model.transformer.h[layer].attn, "_attn"):
-        model.model.transformer.h[layer].attn._attn, old_fn= gpt_attn_wrapper(
-            model.model.transformer.h[layer].attn._attn, 
-            model.save_ctx[f'logit_layer_{layer}'], 
-            model.model.transformer.h[layer].attn.c_proj.weight,
-            model.model.lm_head.weight.T,
-            target_ids=target_ids,
-        )
-    elif hasattr(model.model.transformer.h[layer].attn.attention, "_attn"):
-        model.model.transformer.h[layer].attn.attention._attn, old_fn= gpt_attn_wrapper(
-            model.model.transformer.h[layer].attn.attention._attn, 
-            model.save_ctx[f'logit_layer_{layer}'], 
-            model.model.transformer.h[layer].attn.attention.out_proj.weight,
-            model.model.lm_head.weight.T,
-            target_ids=target_ids,
-        )
+def wrap_gpt_attn(
+    model: HookedModel, 
+    layer: int, 
+    target_ids: Callable,
+    unembedding_key: str,
+    attn_name: Optional[str] = 'attn',
+    attn_suffix: Optional[str] = None,
+    layer_key_prefix: Optional[str] = None,
+    out_proj_name: Optional[str] = 'out_proj',
+) -> Callable:
+    # parse inputs
+    if layer_key_prefix is None:
+        layer_key_prefix = ""
     else:
-        AttributeError(f'Layer {layer} has no _attn function')
+        layer_key_prefix += "->"
+    if attn_suffix is None:
+        attn_suffix = ""
+    else:
+        attn_suffix = f"->{attn_suffix}"
+    attn_name = f"{layer_key_prefix}{layer}->{attn_name}{attn_suffix}"
+    out_proj_name = attn_name + f"->{out_proj_name}"
+    
+    model.layers[attn_name]._attn, old_fn = gpt_attn_wrapper(
+        model.layers[attn_name]._attn,
+        model.save_ctx[f'logit_layer_{layer}'], 
+        model.layers[out_proj_name].weight,
+        model.layers[unembedding_key].weight.T,
+        target_ids
+    )
     
     return old_fn
         
 
-def reset_attn_fn(model, layer, old_fn):
-    if hasattr(model.model.transformer.h[layer].attn, "_attn"):
-        del model.model.transformer.h[layer].attn._attn
-        model.model.transformer.h[layer].attn._attn = old_fn
-    elif hasattr(model.model.transformer.h[layer].attn.attention, "_attn"):
-        del model.model.transformer.h[layer].attn.attention._attn
-        model.model.transformer.h[layer].attn.attention._attn = old_fn
+def reset_attn_fn(
+    model: HookedModel, 
+    layer: int, 
+    old_fn: Callable,
+    attn_name: Optional[str] = 'attn',
+    attn_suffix: Optional[str] = None,
+    layer_key_prefix: Optional[str] = None,
+) -> None:
+    # parse inputs
+    if layer_key_prefix is None:
+        layer_key_prefix = ""
     else:
-        AttributeError(f'Layer {layer} has no _attn function')
+        layer_key_prefix += "->"
+    if attn_suffix is None:
+        attn_suffix = ""
+    else:
+        attn_suffix = f"->{attn_suffix}"
+    
+    # reset _attn function to old_fn
+    del model.layers[f"{layer_key_prefix}{layer}->{attn_name}{attn_suffix}"]._attn
+    model.layers[f"{layer_key_prefix}{layer}->{attn_name}{attn_suffix}"]._attn = old_fn
