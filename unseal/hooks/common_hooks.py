@@ -41,7 +41,7 @@ def replace_activation(indices: str, replacement_tensor: torch.Tensor, tuple_ind
     :return: Function that replaces part of a given tensor with replacement_tensor
     :rtype: Callable
     """
-    slice_ = util.create_slice(indices)
+    slice_ = util.create_slice_from_str(indices)
     def func(save_ctx, input, output):
         if tuple_index is None:
             # add dummy dimensions if shape mismatch
@@ -68,7 +68,7 @@ def transformers_get_attention(
     if heads is None:
         heads = ":"
     if isinstance(heads, str):
-        heads = util.create_slice(heads)
+        heads = util.create_slice_from_str(heads)
 
     def func(save_ctx, input, output):
         if output_idx is None:
@@ -167,8 +167,8 @@ def logit_hook(
             position = str(position)
         else:
             position = "[" + ",".join(str(p) for p in position) + "]"
-    position_slice = util.create_slice(f":,{position},:")
-    target_slice = util.create_slice(f"{target},:")
+    position_slice = util.create_slice_from_str(f":,{position},:")
+    target_slice = util.create_slice_from_str(f"{target},:")
     
     # load the relevant part of the vocab matrix
     vocab_matrix = model.layers[unembedding_key].weight[target_slice].T

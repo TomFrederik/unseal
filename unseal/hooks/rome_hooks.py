@@ -11,7 +11,7 @@ from . import common_hooks
 
 
 def additive_output_noise(indices, mean=0, std=0.1):
-    slice_ = util.create_slice(indices)
+    slice_ = util.create_slice_from_str(indices)
     def func(save_ctx, input, output):
         noise = mean + std * torch.randn_like(output[slice_])
         output[slice_] += noise

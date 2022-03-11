@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-def create_slice(indices: str) -> slice:
+def create_slice_from_str(indices: str) -> slice:
     """Creates a slice object from a string representing the slice.
 
     :param indices: String representing the slice, e.g. ``...,3:5,:``
@@ -13,6 +13,8 @@ def create_slice(indices: str) -> slice:
     :return: Slice object corresponding to the input indices.
     :rtype: slice
     """
+    if len(indices) == 0:
+        raise ValueError('Empty string is not a valid slice.')
     return eval(f'np.s_[{indices}]')
 
 
