@@ -5,7 +5,7 @@
 .. _main:
 
 .. image:: ../images/logo.jpg
-   
+   :width: 400px
 
 Welcome to Unseal's documentation!
 ==================================
