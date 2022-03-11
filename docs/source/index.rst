@@ -4,6 +4,9 @@
    contain the root `toctree` directive.
 .. _main:
 
+.. image:: ../images/logo.jpg
+   
+
 Welcome to Unseal's documentation!
 ==================================
 
