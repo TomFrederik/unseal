@@ -55,7 +55,7 @@ def load_from_pretrained(
 
     return model, tokenizer, config
 
-def get_num_layers(model: HookedModel) -> int:
+def get_num_layers(model: HookedModel, layer_key_prefix: Optional[str] = None) -> int:
     """Get the number of layers in a model
 
     :param model: The model to get the number of layers from
@@ -63,4 +63,9 @@ def get_num_layers(model: HookedModel) -> int:
     :return: The number of layers in the model
     :rtype: int
     """
-    return len(model.structure['children']['transformer']['children']['h']['children'])
+    if layer_key_prefix is None:
+        layer_key_prefix = ""
+    else:
+        layer_key_prefix += "->"
+    
+    return len(model.layers[f"{layer_key_prefix}"])

@@ -23,9 +23,6 @@ class HookedModel(torch.nn.Module):
         
         self.model = model
         
-        # generate ordereddict to access all submodules
-        self.structure = util.recursive_module_dict(self.model)
-        
         # initialize hooks
         self.init_refs()
 
@@ -95,7 +92,7 @@ class HookedModel(torch.nn.Module):
         return list(self.save_ctx.keys())
 
     def __repr__(self):
-        return self.structure['module'].__repr__()
+        return self.model.__repr__()
     
     @property
     def device(self):

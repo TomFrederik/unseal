@@ -15,8 +15,9 @@ def generate_logit_lense(
     sentence: str,
     layers: Optional[List[int]] = None,
     ranks: Optional[bool] = False,
-    kl_div: Optional[bool] =False,
-    include_input: Optional[bool] =False,
+    kl_div: Optional[bool] = False,
+    include_input: Optional[bool] = False,
+    layer_key_prefix: Optional[str] = None,
 ):
     """Generates the necessary data to generate the plots from the logits `lense post 
     <https://www.lesswrong.com/posts/AcKRB8wDpdaN6v6ru/interpreting-gpt-the-logit-lens>`_.
@@ -37,6 +38,8 @@ def generate_logit_lense(
     :type kl_div: Optional[bool], optional
     :param include_input: Whether to include the immediate logits/ranks/kld after embedding the input, defaults to False
     :type include_input: Optional[bool], optional
+    :param layer_key_prefix: Prefix for the layer keys, e.g. 'transformer->h' for GPT like models, defaults to None
+    :type layer_key_prefix: Optional[str], optional
     :return: logits, ranks, kl_div
     :rtype: Tuple[torch.Tensor]
     """
@@ -50,10 +53,10 @@ def generate_logit_lense(
     targets = tokenizer.encode(sentence)[1:]
     
     # instantiate hooks
-    num_layers = get_num_layers(model)
+    num_layers = get_num_layers(model, layer_key_prefix=layer_key_prefix)
     if layers is None:
         layers = list(range(num_layers))
-    logit_hooks = [logit_hook(layer, model, 'lm_head', 'transformer->h') for layer in layers]
+    logit_hooks = [logit_hook(layer, model, 'lm_head', layer_key_prefix) for layer in layers]
     
     # run model
     model.forward(tokenized_sentence, hooks=logit_hooks)

@@ -20,7 +20,7 @@ In order to simplify the hooking interface, Unseal wraps every model in the ``ho
 hooks.HookedModel
 =======================
 
-You can access the top-level structure of a so-wrapped model by printing it (i.e. its ``__repr__`` property) or its ``structure['module']`` property:
+You can access the top-level structure of a so-wrapped model by printing it (i.e. its ``__repr__`` property):
 
 .. code-block:: python
 
@@ -41,7 +41,7 @@ You can access the top-level structure of a so-wrapped model by printing it (i.e
     print(model)
 
     # equivalent:
-    # print(model.structure['module'])
+    # print(model.model)
 
     ''' Output:
     Sequential(

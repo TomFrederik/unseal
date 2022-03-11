@@ -5,22 +5,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-def recursive_module_dict(model: nn.Module) -> OrderedDict:
-    """Recursively generates an OrderedDict representing the module structure in a nn.Module.
-
-    :param model: The (sub-)module for which to generate the structure
-    :type model: torch.nn.Module
-    :return: Structure of the module
-    :rtype: OrderedDict
-    """
-    
-    subdict = OrderedDict(module=model, children=OrderedDict())
-    if len(model._modules) > 0:
-        for name, submodule in model._modules.items():
-            subdict['children'][name] = recursive_module_dict(submodule)
-    
-    return subdict
-
 def create_slice(indices: str) -> slice:
     """Creates a slice object from a string representing the slice.
 

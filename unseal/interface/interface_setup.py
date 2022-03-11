@@ -116,9 +116,10 @@ def on_config_submit(model_name: str) -> Tuple:
     model.to(st.session_state.device).eval()
     
     if model_name in st.session_state.registered_models:
-        st.session_state.num_layers = len(model.structure['children']['transformer']['children']) # TODO
+        raise NotImplementedError("get_num_layers not supported for registered models")
+        # st.session_state.num_layers = get_num_layers(model, #TODO)
     else:
-        st.session_state.num_layers = get_num_layers(model)
+        st.session_state.num_layers = get_num_layers(model, 'transformer->h')
 
     return model, tokenizer, config
 
