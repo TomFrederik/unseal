@@ -10,7 +10,7 @@ which it attaches and by the operation that it executes (usually either during t
 
 To read more about the original concept of a hook in PyTorch read `here <https://pytorch.org/docs/stable/notes/modules.html#module-hooks>`_.
 
-In Unseal, a hook is defined as a ``namedtuple`` consisting of a ``layer_name`` (the point at which it attaches), 
+In Unseal, a hook is an object consisting of a ``layer_name`` (the point at which it attaches), 
 a ``func`` (the function it executes), and a ``key`` (an identifying string unique to the hook)
 
 In order to simplify the hooking interface, Unseal wraps every model in the ``hooks.HookedModel`` class. 

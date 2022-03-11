@@ -1,11 +1,24 @@
-from collections import namedtuple, OrderedDict
-from typing import List
+from collections import OrderedDict
+from dataclasses import dataclass
+from inspect import signature
+from typing import List, Callable
 
 import torch
 
 from . import util
 
-Hook = namedtuple('Hook', 'layer_name func key')
+class Hook:
+    layer_name: str
+    func: Callable
+    key: str
+    def __init__(self, layer_name: str, func: Callable, key: str):
+        # check that func takes three arguments
+        if len(signature(func).parameters) != 3:
+            raise TypeError(f'Hook function {func.__name__} should have three arguments, but has {len(signature(func).parameters)}.')
+
+        self.layer_name = layer_name
+        self.func = func
+        self.key = key
 
 class HookedModel(torch.nn.Module):
     def __init__(self, model):
@@ -85,7 +98,7 @@ class HookedModel(torch.nn.Module):
         :type hook_key: [type]
         :return: [description]
         :rtype: [type]
-        """
+        """     
         return lambda model, input, output: func(save_ctx=self.save_ctx[hook_key], input=input[0], output=output)
 
     def get_ctx_keys(self):
