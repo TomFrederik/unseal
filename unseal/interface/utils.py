@@ -8,7 +8,8 @@ import streamlit as st
 import torch
 
 from ..hooks import Hook
-from ..hooks.common_hooks import gpt_get_attention_hook, gpt_attn_wrapper
+from ..hooks.common_hooks import create_attention_hook, gpt_attn_wrapper
+from ..hooks.grokking_hooks import grokking_get_attention_hook
 from ..hooks import util 
 
 def sample_text(model, col_idx, key):
@@ -33,25 +34,6 @@ def on_text_change(col_idx: Union[int, List[int]], text_key):
         st.session_state["storage"][col_idx] = st.session_state[text_key]
         text_change(col_idx)
 
-## TODO
-# move those two functions somewhere else
-def grokking_get_attention(heads: Optional[Union[int, Iterable[int], str]] = None) -> Callable:
-    # convert string to slice
-    if heads is None:
-        heads = ":"
-    if isinstance(heads, str):
-        heads = util.create_slice(heads)
-
-    def func(save_ctx, input, output):
-        save_ctx['attn'] = output[1][:,heads,...].detach().cpu()
-    
-    return func
-
-def grokking_get_attention_hook(layer: int, key: str, heads: Optional[Union[int, Iterable[int], str]] = None) -> Callable:
-    func = grokking_get_attention(heads)
-    return Hook(f'transformer->{layer}->self_attn', func, key)    
-####
-
 
 def compute_attn_logits(
     model, 
@@ -73,7 +55,7 @@ def compute_attn_logits(
         model_input = st.session_state.tokenizer.encode(text, return_tensors='pt').to(st.session_state.device)
         target_ids = model_input[0,1:].to('cpu')
         #TODO generalize this somehow
-        attn_hooks = [grokking_get_attention_hook(i, f'attn_layer_{i}') for i in range(st.session_state.num_layers)]
+        attn_hooks = [create_attention_hook(i, f'attn_layer_{i}', 1, 'self_attn', 'transformer') for i in range(st.session_state.num_layers)]
         st.session_state.model.forward(model_input, hooks=attn_hooks)
         
         # compute logits
@@ -135,7 +117,7 @@ def compute_attn_logits(
         target_ids = tokenizer.encode(text)[1:]
         
         # compute attention pattern
-        attn_hooks = [gpt_get_attention_hook(i, f'attn_layer_{i}') for i in range(num_layers)]
+        attn_hooks = [create_attention_hook(i, f'attn_layer_{i}', 2, 'attn', 'transformer->h') for i in range(num_layers)]
         model.forward(model_input, hooks=attn_hooks, output_attentions=True)
 
         # compute logits

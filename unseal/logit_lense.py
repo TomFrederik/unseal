@@ -53,7 +53,7 @@ def generate_logit_lense(
     num_layers = get_num_layers(model)
     if layers is None:
         layers = list(range(num_layers))
-    logit_hooks = [logit_hook(layer) for layer in layers]
+    logit_hooks = [logit_hook(layer, model, 'lm_head', 'transformer->h') for layer in layers]
     
     # run model
     model.forward(tokenized_sentence, hooks=logit_hooks)

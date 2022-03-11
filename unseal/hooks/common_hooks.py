@@ -5,7 +5,6 @@ from typing import Iterable, Callable, Optional, Union, List, Tuple, Dict
 import einops
 import torch
 import torch.nn.functional as F
-from transformers.models.gpt_neo.modeling_gpt_neo import GPTNeoPreTrainedModel
 from tqdm import tqdm
 from . import util
 from .commons import Hook, HookedModel
@@ -60,41 +59,81 @@ def replace_activation(indices: str, replacement_tensor: torch.Tensor, tuple_ind
 
     return func
 
-def transformers_get_attention(heads: Optional[Union[int, Iterable[int], str]] = None) -> Callable:
-    # convert string to slice
+def transformers_get_attention(
+    heads: Optional[Union[int, Iterable[int], str]] = None,
+    output_idx: Optional[int] = None,
+    ) -> Callable:
+    
+    # convert head string to slice
     if heads is None:
         heads = ":"
     if isinstance(heads, str):
         heads = util.create_slice(heads)
 
     def func(save_ctx, input, output):
-        save_ctx['attn'] = output[2][:,heads,...].detach().cpu()
+        if output_idx is None:
+            save_ctx['attn'] = output[:,heads,...].detach().cpu()
+        else:
+            save_ctx['attn'] = output[output_idx][:,heads,...].detach().cpu()
     
     return func
 
-def gpt_get_attention_hook(layer: int, key: str, heads: Optional[Union[int, Iterable[int], str]] = None) -> Callable:
-    func = transformers_get_attention(heads)
-    return Hook(f'transformer->h->{layer}->attn', func, key)
+def create_attention_hook(
+    layer: int, 
+    key: str, 
+    output_idx: Optional[int] = None,
+    attn_name: Optional[str] = 'attn',
+    layer_key_prefix: Optional[str] = None,
+    heads: Optional[Union[int, Iterable[int], str]] = None
+) -> Hook:
+    """Creates a hook which saves the attention patterns of a given layer.
+
+    :param layer: The layer to hook.
+    :type layer: int
+    :param key: The key to use for saving the attention patterns.
+    :type key: str
+    :param output_idx: If the module output is a tuple, index it with this. GPT like models need this to be equal to 2, defaults to None
+    :type output_idx: Optional[int], optional
+    :param attn_name: The name of the attention module in the transformer, defaults to 'attn'
+    :type attn_name: Optional[str], optional
+    :param layer_key_prefix: The prefix in the model structure before the layer idx, e.g. 'transformer->h', defaults to None
+    :type layer_key_prefix: Optional[str], optional
+    :param heads: Which heads to save the attention pattern for. Can be int, tuple of ints or string like '1:3', defaults to None
+    :type heads: Optional[Union[int, Iterable[int], str]], optional
+    :return: Hook which saves the attention patterns
+    :rtype: Hook
+    """
+    if layer_key_prefix is None:
+        layer_key_prefix = ""
+    else:
+        layer_key_prefix = f"{layer_key_prefix}->"
+        
+    func = transformers_get_attention(heads, output_idx)
+    return Hook(f'{layer_key_prefix}{layer}->{attn_name}', func, key)
 
 
 def logit_hook(
     layer:int, 
     model: HookedModel, 
+    unembedding_key: str,
+    layer_key_prefix: Optional[str] = None,
     target: Optional[Union[int, List[int]]] = None, 
     position: Optional[Union[int, List[int]]] = None,
     key: Optional[str] = None,
     split_heads: Optional[bool] = False,
+    num_heads: Optional[int] = None,
 ) -> Hook:
     """Create a hook that saves the logits of a layer's output.
-    Outputs are saved to save_ctx['{layer}_logits']['logits'].
+    Outputs are saved to save_ctx[key]['logits'].
     
-    Currently only works with GPT like models, since it assumes the key of the embedding matrix and the structure of
-    these models.
-
     :param layer: The number of the layer
     :type layer: int
     :param model: The model.
     :type model: HookedModel
+    :param unembedding_key: The key/name of the embedding matrix, e.g. 'lm_head' for causal LM models
+    :type unembedding_key: str
+    :param layer_key_prefix: The prefix of the key of the layer, e.g. 'transformer->h' for GPT like models
+    :type layer_key_prefix: str
     :param target: The target token(s) to extract logits for. Defaults to all tokens.
     :type target: Union[int, List[int]]
     :param position: The position for which to extract logits for. Defaults to all positions.
@@ -103,10 +142,16 @@ def logit_hook(
     :type key: str
     :param split_heads: Whether to split the heads. Defaults to False.
     :type split_heads: bool
+    :param num_heads: The number of heads to split. Defaults to None.
+    :type num_heads: int
     :return: The hook.
     :rtype: Hook
     """
-    
+    if layer_key_prefix is None:
+        layer_key_prefix = ""
+    else:
+        layer_key_prefix += "->"
+        
     # generate slice
     if target is None:
         target = ":"
@@ -126,18 +171,18 @@ def logit_hook(
     target_slice = util.create_slice(f"{target},:")
     
     # load the relevant part of the vocab matrix
-    vocab_matrix = model.structure['children']['lm_head']['module'].weight[target_slice].T
+    vocab_matrix = model.layers[unembedding_key].weight[target_slice].T
         
+    # split vocab matrix
     if split_heads:
-        if isinstance(model.model, GPTNeoPreTrainedModel):
-            head_dim = model.model.transformer.h[layer].attn.attention.head_dim
+        if num_heads is None:
+            raise ValueError("num_heads must be specified if split_heads is True")
         else:
-            head_dim = model.model.transformer.h[layer].attn.head_dim
-        vocab_matrix = einops.rearrange(vocab_matrix, '(num_heads head_dim) vocab_size -> num_heads head_dim vocab_size', head_dim=head_dim)
+            vocab_matrix = einops.rearrange(vocab_matrix, '(num_heads head_dim) vocab_size -> num_heads head_dim vocab_size', num_heads=num_heads)
     
     def inner(save_ctx, input, output):
         if split_heads:
-            einsum_in = einops.rearrange(output[0][position_slice], 'batch seq_len (heads head_dim) -> batch heads seq_len head_dim', head_dim=head_dim)
+            einsum_in = einops.rearrange(output[0][position_slice], 'batch seq_len (num_heads head_dim) -> batch num_heads seq_len head_dim', num_heads=num_heads)
             einsum_out = torch.einsum('bcij,cjk->bcik', einsum_in, vocab_matrix)
         else:
             einsum_in = output[0][position_slice]
@@ -150,7 +195,7 @@ def logit_hook(
         key = str(layer) + '_logits'
     
     # create hook
-    hook = Hook(f'transformer->h->{layer}', inner, key)
+    hook = Hook(f'{layer_key_prefix}{layer}', inner, key)
     
     return hook
 
