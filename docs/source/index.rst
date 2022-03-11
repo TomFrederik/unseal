@@ -18,7 +18,7 @@ If you are new to Unseal, you should start by reading the :ref:`getting started 
 
 
 .. toctree::
-   :maxdepth: 0
+   :maxdepth: 1
    :caption: Tutorials and Guides
 
    tutorials/installation
