@@ -116,8 +116,7 @@ def on_config_submit(model_name: str) -> Tuple:
     model.to(st.session_state.device).eval()
     
     if model_name in st.session_state.registered_models:
-        raise NotImplementedError("get_num_layers not supported for registered models")
-        # st.session_state.num_layers = get_num_layers(model, #TODO)
+        st.session_state.num_layers = get_num_layers(model, config['layer_key_prefix'])
     else:
         st.session_state.num_layers = get_num_layers(model, 'transformer->h')
 
@@ -157,8 +156,8 @@ def load_model(model_name: str) -> Tuple:
         tokenizer_class = getattr(tokenizer_module, tokenizer.split('.')[-1])
         tokenizer = tokenizer_class()
 
-        # TODO?
-        config = None
+        # load config
+        config = st.session_state.registered_models[model_name]['config']
 
     else: # attempt to load from huggingface
         model, tokenizer, config = load_from_pretrained(model_name)
