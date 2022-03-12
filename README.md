@@ -1,7 +1,7 @@
 # Unseal - Mechanistic Interpretability for Transformers
 
 <!-- include logo image -->
-<img src="https://github.com/TomFrederik/unseal/blob/main/docs/images/logo.png" width="400">
+<img src="https://github.com/TomFrederik/unseal/blob/main/docs/images/logo.png?raw=true" width="400">
 
 ## Prerequisites
 
@@ -41,5 +41,5 @@ We refer to our documentation for tutorials and usage guides:
 Here are some notebooks that also showcase Unseal's functionalities.
 
 <a href="https://colab.research.google.com/drive/1Y1y2GnDT-Uzvyp8pUWWXt8lEfHWxje3b?usp=sharing">
-    <img src="https://github.com/TomFrederik/unseal/blob/main/docs/images/notebook_images/inspectgpt2_card.png">
+    <img src="https://github.com/TomFrederik/unseal/blob/main/docs/images/notebook_images/inspectgpt2_card.png?raw=true">
 </a>

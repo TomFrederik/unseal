@@ -36,7 +36,7 @@ setup(
     long_description_content_type="text/markdown",
     author="The Unseal Team",
     author_email="tlieberum@outlook.de",
-    url="https://unseal.readthedocs.io",
+    url="https://github.com/TomFrederik/unseal/",
     license="Apache License 2.0",
     keywords=[
         "pytorch",
