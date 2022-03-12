@@ -5,6 +5,8 @@ from unseal import __version__
 
 version = __version__
 
+with open("README.md", "r") as fh:
+    long_description = fh.read()
 
 setup(
     name='Unseal',
@@ -27,9 +29,11 @@ setup(
     # },
     description=(
         "Unseal "
-        "Collection of infrastructure and tools for research in "
+        "A collection of infrastructure and tools for research in "
         "transformer interpretability."
     ),
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     author="The Unseal Team",
     author_email="tlieberum@outlook.de",
     url="https://unseal.readthedocs.io",
