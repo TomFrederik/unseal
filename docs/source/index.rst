@@ -4,7 +4,7 @@
    contain the root `toctree` directive.
 .. _main:
 
-.. image:: ../images/logo.jpg
+.. image:: ../images/logo.svg
    :width: 400px
 
 Welcome to Unseal's documentation!
