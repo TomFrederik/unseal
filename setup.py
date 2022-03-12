@@ -32,7 +32,7 @@ setup(
     ),
     author="The Unseal Team",
     author_email="tlieberum@outlook.de",
-    url="unseal.readthedocs.io",
+    url="https://unseal.readthedocs.io",
     license="Apache License 2.0",
     keywords=[
         "pytorch",
