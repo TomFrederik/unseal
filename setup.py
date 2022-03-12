@@ -1,7 +1,9 @@
 from setuptools import setup, find_packages
-import unseal
+import os, sys
+sys.path.insert(0, os.path.abspath("."))
+from unseal import __version__
 
-version = unseal.__version__
+version = __version__
 
 
 setup(
