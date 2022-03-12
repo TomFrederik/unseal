@@ -21,12 +21,10 @@ pip install -e .
 In order to run PySvelte, you will also need to install ``npm`` via your package manager.
 The hooking functionality of Unseal should still work without PySvelte, but we can't give any guarantees
 
-Install Unseal via pip after cloning the repository:
+Install Unseal via pip
 
 ```sh
-git clone git@github.com:TomFrederik/unseal.git
-cd unseal
-pip install -e .
+pip install unseal
 ```
 
 ## Usage

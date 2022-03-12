@@ -23,10 +23,8 @@ For its interfaces, Unseal uses `this fork <https://github.com/TomFrederik/pysve
 
 In order to run PySvelte, you will also need to install ``npm`` via your package manager.
 
-Install Unseal via pip after cloning the repository:
+Install Unseal via pip:
 
 .. code-block:: console
     
-    git clone git@github.com:TomFrederik/unseal.git
-    cd unseal
-    pip install -e .
+    pip install unseal
