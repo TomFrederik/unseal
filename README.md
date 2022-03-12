@@ -1,7 +1,7 @@
 # Unseal - Mechanistic Interpretability for Transformers
 
 <!-- include logo image -->
-<img src="https://github.com/TomFrederik/unseal/blob/main/docs/images/logo.png" width="800">
+<img src="https://github.com/TomFrederik/unseal/blob/main/docs/images/logo.png" width="400">
 
 ## Prerequisites
 
