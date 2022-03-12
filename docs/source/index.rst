@@ -24,6 +24,7 @@ If you are new to Unseal, you should start by reading the :ref:`getting started 
    tutorials/installation
    tutorials/getting_started
    tutorials/hooking
+   tutorials/common_hooks
    tutorials/interfaces
 
 .. toctree::

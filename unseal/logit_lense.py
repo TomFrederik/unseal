@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from transformers import AutoTokenizer
 
 from .transformers_util import get_num_layers
-from .hooks.common_hooks import logit_hook
+from .hooks.common_hooks import create_logit_hook
 from .hooks.commons import HookedModel
 
 def generate_logit_lense(
@@ -56,7 +56,7 @@ def generate_logit_lense(
     num_layers = get_num_layers(model, layer_key_prefix=layer_key_prefix)
     if layers is None:
         layers = list(range(num_layers))
-    logit_hooks = [logit_hook(layer, model, 'lm_head', layer_key_prefix) for layer in layers]
+    logit_hooks = [create_logit_hook(layer, model, 'lm_head', layer_key_prefix) for layer in layers]
     
     # run model
     model.forward(tokenized_sentence, hooks=logit_hooks)

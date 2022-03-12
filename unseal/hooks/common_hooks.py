@@ -63,6 +63,15 @@ def transformers_get_attention(
     heads: Optional[Union[int, Iterable[int], str]] = None,
     output_idx: Optional[int] = None,
     ) -> Callable:
+    """Creates a hooking function to get the attention patterns of a given layer.
+
+    :param heads: The heads for which to save the attention, defaults to None
+    :type heads: Optional[Union[int, Iterable[int], str]], optional
+    :param output_idx: If the attention module returns a tuple, use this argument to index it, defaults to None
+    :type output_idx: Optional[int], optional
+    :return: func, hooking function that saves attention of the specified heads
+    :rtype: Callable
+    """
     
     # convert head string to slice
     if heads is None:
@@ -110,7 +119,7 @@ def create_attention_hook(
     return Hook(f'{layer_key_prefix}{layer}->{attn_name}', func, key)
 
 
-def logit_hook(
+def create_logit_hook(
     layer:int, 
     model: HookedModel, 
     unembedding_key: str,

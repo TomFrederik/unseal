@@ -134,3 +134,6 @@ For example, let's implement a hook which saves the input and output of the firs
             0.0255, -0.2492,  0.1586,  0.2404, -0.2033, -0.6197, -0.1098,  0.3736,
             0.1246, -0.4697, -0.7690,  0.0981, -0.0255,  0.2133,  0.3061,  0.1846]])
     '''
+
+To make things easier for you, Unseal comes with a few pre-implemented hooking functions, which
+we will explain in the next section.
