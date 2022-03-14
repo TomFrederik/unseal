@@ -28,7 +28,7 @@ setup(
     #     ]
     # },
     description=(
-        "Unseal "
+        "Unseal: "
         "A collection of infrastructure and tools for research in "
         "transformer interpretability."
     ),
