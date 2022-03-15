@@ -24,6 +24,7 @@ def compute_attn_logits(
     out_proj_name: Optional[str] = 'out_proj',
     attn_suffix: Optional[str] = None,
     unembedding_key: Optional[str] = 'lm_head',
+    layer_id: Optional[int] = None,
 ):
     # parse inputs
     if save_path is None:
@@ -34,6 +35,10 @@ def compute_attn_logits(
         layer_key_prefix += "->"
     if attn_suffix is None or attn_suffix == "":
         attn_suffix = ""
+    if layer_id is None:
+        layer_list = list(range(num_layers))
+    else:
+        layer_list = [layer_id]
     
     # tokenize without tokenization artifact -> needed for visualization
     tokenized_text = tokenizer.tokenize(text)
@@ -44,11 +49,11 @@ def compute_attn_logits(
     target_ids = tokenizer.encode(text)[1:]
     
     # compute attention pattern
-    attn_hooks = [create_attention_hook(i, f'attn_layer_{i}', output_idx, attn_name, layer_key_prefix) for i in range(num_layers)]
+    attn_hooks = [create_attention_hook(layer, f'attn_layer_{layer}', output_idx, attn_name, layer_key_prefix) for layer in layer_list]
     model.forward(model_input, hooks=attn_hooks, output_attentions=True)
     
     # compute logits
-    for layer in range(num_layers):
+    for layer in layer_list:
 
         # wrap the _attn function to create logit attribution
         model.save_ctx[f'logit_layer_{layer}'] = dict()

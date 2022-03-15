@@ -60,6 +60,8 @@ def get_num_layers(model: HookedModel, layer_key_prefix: Optional[str] = None) -
 
     :param model: The model to get the number of layers from
     :type model: HookedModel
+    :param layer_key_prefix: The prefix to use for the layer keys, defaults to None
+    :type layer_key_prefix: Optional[str], optional
     :return: The number of layers in the model
     :rtype: int
     """

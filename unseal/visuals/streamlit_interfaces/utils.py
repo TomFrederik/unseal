@@ -67,6 +67,11 @@ def text_change(col_idx: Union[int, List[int]]):
     
     attn_name, output_idx, layer_key_prefix, out_proj_name, attn_suffix, unembedding_key = get_attn_logits_args()
     
+    if 'layer' in st.session_state:
+        layer = st.session_state['layer']
+    else:
+        layer = None
+    
     compute_attn_logits(
         st.session_state.model, 
         st.session_state.model_name, 
@@ -80,4 +85,5 @@ def text_change(col_idx: Union[int, List[int]]):
         out_proj_name = out_proj_name,
         attn_suffix = attn_suffix,
         unembedding_key = unembedding_key,
+        layer = layer,
     )

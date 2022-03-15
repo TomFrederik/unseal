@@ -48,5 +48,8 @@ if st.session_state.model is not None:
         if f"col_{col_idx}" in st.session_state.visualization:
             with col:
                 for layer in range(st.session_state.num_layers):
-                    with st.expander(f'Layer {layer}'):
-                        st.components.v1.html(st.session_state.visualization[f"col_{col_idx}"][f"layer_{layer}"], height=600)
+                    if f"layer_{layer}" in st.session_state.visualization[f"col_{col_idx}"]:
+                        with st.expander(f'Layer {layer}'):
+                            st.components.v1.html(st.session_state.visualization[f"col_{col_idx}"][f"layer_{layer}"], height=600)
+        else:
+            st.session_state.visualization[f"col_{col_idx}"] = dict()

@@ -76,7 +76,7 @@ class HookedModel(torch.nn.Module):
         for hook in hooks:
             layer = self.layers.get(hook.layer_name, None)
             if layer is None:
-                raise ValueError(f'Layer {hook.layer_name} was not found during hook registration! Here is the whole model for reference:\n {next(iter(self.layers.items()))}')
+                raise ValueError(f'Layer {hook.layer_name} was not found during hook registration! Here is the whole model for reference:\n {self.__repr__}')
             self.save_ctx[hook.key] = dict() # create sub-context for each hook to write to
             registered_hooks.append(layer.register_forward_hook(self._hook_wrapper(hook.func, hook.key)))
 
