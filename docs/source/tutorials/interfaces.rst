@@ -20,6 +20,10 @@ Here we collect Google Colab Notebooks that demonstrate Unseal functionalities.
    :target: https://colab.research.google.com/drive/1Y1y2GnDT-Uzvyp8pUWWXt8lEfHWxje3b?usp=sharing
 
 
+.. image:: https://github.com/TomFrederik/unseal/blob/main/docs/images/notebook_images/trace_info_flow_card.png?raw=true
+   :target: https://colab.research.google.com/drive/1ljCPvbr7VPEIlbZQvrUceLSDsdeo3oRH?usp=sharing
+
+
 
 Streamlit interfaces
 ====================

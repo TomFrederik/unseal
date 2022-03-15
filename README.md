@@ -41,3 +41,7 @@ Here are some notebooks that also showcase Unseal's functionalities.
 <a href="https://colab.research.google.com/drive/1Y1y2GnDT-Uzvyp8pUWWXt8lEfHWxje3b?usp=sharing">
     <img src="https://github.com/TomFrederik/unseal/blob/main/docs/images/notebook_images/inspectgpt2_card.png?raw=true">
 </a>
+
+<a href="https://colab.research.google.com/drive/1ljCPvbr7VPEIlbZQvrUceLSDsdeo3oRH?usp=sharing">
+    <img src="https://github.com/TomFrederik/unseal/blob/main/docs/images/notebook_images/trace_info_flow_card.png?raw=true">
+</a>
