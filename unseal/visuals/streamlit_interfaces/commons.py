@@ -14,7 +14,6 @@ SESSION_STATE_VARIABLES = [
     'model',
     'tokenizer',
     'config',
-    'input_text',
     'registered_models',
     'registered_model_names',
     'num_layers',

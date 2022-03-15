@@ -27,7 +27,7 @@ with st.sidebar:
     
     # select layer
     if st.session_state.num_layers is None:
-        options = list()
+        options = list(['Select a model!'])
     else:
         options = list(range(st.session_state.num_layers))
     st.selectbox('Layer', options=options, key='layer', on_change=layer_change, index=0)
@@ -57,5 +57,8 @@ if st.session_state.model is not None:
     for col_idx, col in enumerate(cols):
         if f"col_{col_idx}" in st.session_state.visualization:
             with col:
-                with st.expander(f'Layer {st.session_state.layer}'):
-                    st.components.v1.html(st.session_state.visualization[f"col_{col_idx}"][f"layer_{st.session_state.layer}"], height=600)
+                if f"layer_{st.session_state.layer}" in st.session_state.visualization[f"col_{col_idx}"]:
+                    with st.expander(f'Layer {st.session_state.layer}'):
+                        st.components.v1.html(st.session_state.visualization[f"col_{col_idx}"][f"layer_{st.session_state.layer}"], height=600)
+        else:
+            st.session_state.visualization[f"col_{col_idx}"] = dict()
