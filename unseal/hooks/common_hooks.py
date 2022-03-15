@@ -262,3 +262,26 @@ def gpt_attn_wrapper(
             }         
         return attn_output, attn_weights
     return inner, func
+
+#TODO update docs here
+def additive_output_noise(
+    indices: str, 
+    mean: Optional[float] = 0, 
+    std: Optional[float] = 0.1
+) -> Callable:
+    slice_ = util.create_slice_from_str(indices)
+    def func(save_ctx, input, output):
+        noise = mean + std * torch.randn_like(output[slice_])
+        output[slice_] += noise
+        return output
+    return func
+
+def hidden_patch_hook_fn(
+    position: int, 
+    replacement_tensor: torch.Tensor,
+) -> Callable:
+    indices = "...," + str(position) + len(replacement_tensor.shape) * ",:"
+    inner = replace_activation(indices, replacement_tensor)    
+    def func(save_ctx, input, output):
+        output[0][...] = inner(save_ctx, input, output[0])
+        return output
