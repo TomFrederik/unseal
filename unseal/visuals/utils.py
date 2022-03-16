@@ -117,6 +117,7 @@ def wrap_gpt_attn(
     attn_suffix: Optional[str] = None,
     layer_key_prefix: Optional[str] = None,
     out_proj_name: Optional[str] = 'out_proj',
+    batch_size: Optional[int] = None,
 ) -> Callable:
     # parse inputs
     if layer_key_prefix is None:
@@ -132,7 +133,8 @@ def wrap_gpt_attn(
         model.save_ctx[f'logit_layer_{layer}'], 
         model.layers[out_proj_name].weight,
         model.layers[unembedding_key].weight.T,
-        target_ids
+        target_ids,
+        batch_size,
     )
     
     return old_fn
