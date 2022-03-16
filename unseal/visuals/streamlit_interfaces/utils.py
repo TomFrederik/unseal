@@ -85,5 +85,5 @@ def text_change(col_idx: Union[int, List[int]]):
         out_proj_name = out_proj_name,
         attn_suffix = attn_suffix,
         unembedding_key = unembedding_key,
-        layer = layer,
+        layer_id = layer,
     )

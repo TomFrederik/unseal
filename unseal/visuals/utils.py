@@ -25,6 +25,7 @@ def compute_attn_logits(
     attn_suffix: Optional[str] = None,
     unembedding_key: Optional[str] = 'lm_head',
     layer_id: Optional[int] = None,
+    batch_size: Optional[int] = None,
 ):
     # parse inputs
     if save_path is None:
@@ -57,7 +58,7 @@ def compute_attn_logits(
 
         # wrap the _attn function to create logit attribution
         model.save_ctx[f'logit_layer_{layer}'] = dict()
-        old_fn = wrap_gpt_attn(model, layer, target_ids, unembedding_key, attn_name, attn_suffix, layer_key_prefix, out_proj_name)
+        old_fn = wrap_gpt_attn(model, layer, target_ids, unembedding_key, attn_name, attn_suffix, layer_key_prefix, out_proj_name, batch_size)
 
         # forward pass
         model.forward(model_input, hooks=[])
