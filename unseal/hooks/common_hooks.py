@@ -1,29 +1,44 @@
 # pre-implemented common hooks
+import logging
 import math
-from typing import Iterable, Callable, Optional, Union, List, Tuple, Dict
+from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import einops
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
+
 from . import util
 from .commons import Hook, HookedModel
 
-def save_output(save_ctx: dict, input: torch.Tensor, output: torch.Tensor):
+
+def save_output(cpu: bool = True, detach: bool = True) -> Callable:
     """Basic hooking function for saving the output of a module to the global context object
 
-    :param save_ctx: Context object
-    :type save_ctx: dict
-    :param input: Input to the module.
-    :type input: torch.Tensor
-    :param output: Output of the module.
-    :type output: torch.Tensor
+    :param cpu: Whether to save the output to cpu.
+    :type cpu: bool
+    :param detach: Whether to detach the output.
+    :type detach: bool
+    :return: Function that saves the output to the context object.
+    :rtype: Callable
     """
-    if isinstance(output, torch.Tensor):
-        save_ctx['output'] = output.to('cpu')
-    elif isinstance(output, Iterable): # hope for the best
-        save_ctx['output'] = util.recursive_to_device(output, 'cpu')
+    def inner(save_ctx, input, output):
+        if detach:
+            if isinstance(output, torch.Tensor):
+                output = output.detach()
+            else:
+                logging.warning('Detaching tensor for iterables not implemented')
+                # not implemented
+        if cpu:
+            if isinstance(output, torch.Tensor):
+                output = output.cpu()
+            elif isinstance(output, Iterable): # hope for the best
+                output = util.recursive_to_device(output, 'cpu')
+            else:
+                raise TypeError(f"Unsupported type for output {type(output)}")
+        save_ctx['output'] = output
 
+    return inner
 
 def replace_activation(indices: str, replacement_tensor: torch.Tensor, tuple_index: int = None) -> Callable:
     """Creates a hook which replaces a module's activation (output) with a replacement tensor. 
