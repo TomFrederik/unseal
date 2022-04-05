@@ -104,8 +104,8 @@ def compute_attn_logits(
     return html_storage
 
 def pad_logits(logits):
-    logits = torch.cat([torch.zeros_like(logits[:,0][:,None]), logits], dim=1)
-    logits = torch.cat([logits, torch.zeros_like(logits[:,:,0][:,:,None])], dim=2)
+    logits = torch.cat([torch.zeros_like(logits[:,0,None]), logits], dim=1)
+    logits = torch.cat([logits, torch.zeros_like(logits[:,:,0,None])], dim=2)
     return logits
     
 def wrap_gpt_attn(

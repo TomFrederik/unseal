@@ -260,7 +260,7 @@ def gpt_attn_wrapper(
             if len(c_proj.shape) == 2:
                 c_proj = einops.rearrange(c_proj, '(head_dim num_heads) out_dim -> head_dim num_heads out_dim', num_heads=attn_output.shape[1])
             c_proj = einops.rearrange(c_proj, 'h n o -> n h o')
-            temp = temp[0,:,:-1] # could this be done earlier?
+            temp = temp[0,:,:-1,:-1] # could this be done earlier?
             new_temp = []
             for head in tqdm(range(temp.shape[0])):
                 new_temp.append([])
@@ -273,10 +273,9 @@ def gpt_attn_wrapper(
                 new_temp[-1] = torch.cat(new_temp[-1])
                 new_temp[-1] -= torch.mean(new_temp[-1], dim=-1, keepdim=True)
                 # select targets
-                new_temp[-1] = new_temp[-1][...,torch.arange(len(target_ids)), target_ids]#.to('cpu')
+                new_temp[-1] = new_temp[-1][...,torch.arange(len(target_ids)), :, target_ids]#.to('cpu')
 
-            new_temp = torch.cat(new_temp, dim=0)
-            new_temp = einops.rearrange(new_temp, '(h t1) t2 -> h t1 t2', h=temp.shape[0], t1=len(target_ids), t2=len(target_ids))
+            new_temp = torch.stack(new_temp, dim=0) # stack heads
             max_pos_value = torch.amax(new_temp).item()
             max_neg_value = torch.amax(-new_temp).item()
             
