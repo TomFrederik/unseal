@@ -24,20 +24,10 @@ def save_output(cpu: bool = True, detach: bool = True) -> Callable:
     """
     def inner(save_ctx, input, output):
         if detach:
-            if isinstance(output, torch.Tensor):
-                output = output.detach()
-            else:
-                logging.warning('Detaching tensor for iterables not implemented')
-                # not implemented
+            util.recursive_detach(output)
         if cpu:
-            if isinstance(output, torch.Tensor):
-                output = output.cpu()
-            elif isinstance(output, Iterable): # hope for the best
-                output = util.recursive_to_device(output, 'cpu')
-            else:
-                raise TypeError(f"Unsupported type for output {type(output)}")
+            output = util.recursive_to_device(output, 'cpu')
         save_ctx['output'] = output
-
     return inner
 
 def replace_activation(indices: str, replacement_tensor: torch.Tensor, tuple_index: int = None) -> Callable:
@@ -245,6 +235,8 @@ def gpt_attn_wrapper(
     :return: inner, func, the wrapped function and the original function
     :rtype: Tuple[Callable, Callable]
     """
+    # atm this function looks so hacky because it does very memory intensive things
+    # if you know any ways in which I can improve this, please let me know!
     # TODO Find a smarter/more efficient way of implementing this function
     # TODO clean up this function
     def inner(query, key, value, *args, **kwargs):
@@ -286,12 +278,22 @@ def gpt_attn_wrapper(
         return attn_output, attn_weights
     return inner, func
 
-#TODO update docs here
 def additive_output_noise(
     indices: str, 
     mean: Optional[float] = 0, 
     std: Optional[float] = 0.1
 ) -> Callable:
+    """Hook that adds Gaussian noise to the output of a layer.
+
+    :param indices: indices of the tensor at which to insert the noise
+    :type indices: str
+    :param mean: mean of the noise, defaults to 0
+    :type mean: Optional[float], optional
+    :param std: standard deviation of the noise, defaults to 0.1
+    :type std: Optional[float], optional
+    :return: func, the hooking function that adds noise at the specified indices
+    :rtype: Callable
+    """
     slice_ = util.create_slice_from_str(indices)
     def func(save_ctx, input, output):
         noise = mean + std * torch.randn_like(output[slice_])
@@ -303,8 +305,19 @@ def hidden_patch_hook_fn(
     position: int, 
     replacement_tensor: torch.Tensor,
 ) -> Callable:
+    """Hook that replaces a hidden layer's output at a specified position with a replacement tensor.
+    This is a more specialized version of `replace_activation` used for information tracing.
+
+    :param position: Position in the sequence at which to replace the hidden layer's output.
+    :type position: int
+    :param replacement_tensor: Tensor with which to replace the hidden layer's output.
+    :type replacement_tensor: torch.Tensor
+    :return: func, the hooking function that replaces the hidden layer's output at the specified position with the replacement tensor.
+    :rtype: Callable
+    """
     indices = "...," + str(position) + len(replacement_tensor.shape) * ",:"
     inner = replace_activation(indices, replacement_tensor)    
     def func(save_ctx, input, output):
         output[0][...] = inner(save_ctx, input, output[0])
         return output
+    return func
