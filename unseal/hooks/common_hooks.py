@@ -51,13 +51,13 @@ def replace_activation(indices: str, replacement_tensor: torch.Tensor, tuple_ind
         if tuple_index is None:
             # add dummy dimensions if shape mismatch
             diff = len(output[slice_].shape) - len(replacement_tensor.shape)
-            rep = replacement_tensor[(None,)*diff].to(input.device)
+            rep = replacement_tensor[(None,)*diff].to(input[0].device)
             # replace part of tensor
             output[slice_] = rep
         else:
             # add dummy dimensions if shape mismatch
             diff = len(output[tuple_index][slice_].shape) - len(replacement_tensor.shape)
-            rep = replacement_tensor[(None,)*diff].to(input.device)
+            rep = replacement_tensor[(None,)*diff].to(input[0].device)
             # replace part of tensor
             output[tuple_index][slice_] = rep
         return output
@@ -121,7 +121,7 @@ def create_attention_hook(
         layer_key_prefix = ""
         
     func = transformers_get_attention(heads, output_idx)
-    return Hook(f'{layer_key_prefix}{layer}->{attn_name}', func, key)
+    return Hook(f'{layer_key_prefix}->{layer}->{attn_name}', func, key)
 
 
 def create_logit_hook(
