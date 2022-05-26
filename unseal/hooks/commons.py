@@ -1,11 +1,11 @@
 from collections import OrderedDict
-from dataclasses import dataclass
 from inspect import signature
-from typing import List, Callable
+from typing import Any, Callable, List
 
 import torch
 
 from . import util
+
 
 class Hook:
     layer_name: str
@@ -61,15 +61,20 @@ class HookedModel(torch.nn.Module):
 
         name_layers(self.model)
 
-
     def forward(
         self, 
         input_ids: torch.Tensor, 
         hooks: List[Hook],
         *args,
         **kwargs,
-    ):
+    ) -> Any:
         """Wrapper around the default forward pass that temporarily registers hooks, executes the forward pass and then closes hooks again.
+        :param input_ids: Input tensor
+        :type input_ids: torch.Tensor
+        :param hooks: List of forward hooks
+        :type hooks: List[Hook]
+        :return: Output of the hooked model
+        :type return: Any
         """
         # register hooks
         registered_hooks = []
@@ -89,17 +94,51 @@ class HookedModel(torch.nn.Module):
             
         return output
 
-    def _hook_wrapper(self, func, hook_key):
+    def hooked_backward(
+        self, 
+        tensor: torch.Tensor, 
+        hooks: List[Hook],
+        *args,
+        **kwargs,
+    ) -> None:
+        """Wrapper around the default backward pass that temporarily registers hooks, executes the backward pass and then closes hooks again.
+        :param tensor: Tensor on which to call backward
+        :type tensor: torch.Tensor
+        :param hooks: List of backward hooks
+        :type hooks: List[Hook]
+        """
+        # register hooks
+        registered_hooks = []
+        for hook in hooks:
+            layer = self.layers.get(hook.layer_name, None)
+            if layer is None:
+                raise ValueError(f'Layer {hook.layer_name} was not found during hook registration! Here is the whole model for reference:\n {self.__repr__}')
+            self.save_ctx[hook.key] = dict() # create sub-context for each hook to write to
+            registered_hooks.append(layer.register_full_backward_hook(self._hook_wrapper(hook.func, hook.key)))
+
+        # backward
+        tensor.backward(*args, **kwargs)
+
+        # remove hooks
+        for hook in registered_hooks:
+            hook.remove()
+    
+
+    def _hook_wrapper(
+        self, 
+        func: Callable, 
+        hook_key: str
+    ) -> Callable:
         """Wrapper to comply with PyTorch's hooking API while enabling saving to context.
 
-        :param func: [description]
-        :type func: [type]
-        :param hook_key: [description]
-        :type hook_key: [type]
-        :return: [description]
-        :rtype: [type]
+        :param func: Hooking function
+        :type func: Callable
+        :param hook_key: Key to save hook output to context
+        :type hook_key: str
+        :return: Callable
+        :rtype: Hooking function which conforms to PyTorch's hooking API
         """     
-        return lambda model, input, output: func(save_ctx=self.save_ctx[hook_key], input=input[0], output=output)
+        return lambda model, input, output: func(save_ctx=self.save_ctx[hook_key], input=input, output=output)
 
     def get_ctx_keys(self):
         return list(self.save_ctx.keys())
