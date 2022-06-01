@@ -1,9 +1,9 @@
-from typing import Tuple
+from typing import Tuple, Optional
 
 import torch
 
 from . import Attention, Tensor
-from .utils import get_o_weight, get_qkv_weights, xavier_uniform_limits
+from .utils import get_o_weight, get_qkv_weights, uniform_limits
 from .compositions import q_composition, k_composition, v_composition
 
 def sample_single_matrix_uniform(
@@ -164,6 +164,8 @@ def compute_k_comp_baseline(shape: torch.Size,
 def compute_all_baselines(
     attention_module: Attention, 
     num_samples: int,
+    dist: Optional[str] = 'xavier',
+    dist_kwargs: Optional[dict] = None,
 ) -> Tuple[float, float, float]:
     """Compute Q, K, and V composition score baselines for the given attention module.
 
@@ -179,8 +181,9 @@ def compute_all_baselines(
     
     qkv_shape = q.shape[1:]
     
-    qkv_limits = xavier_uniform_limits(torch.cat([q, k, v], dim=1))
-    o_limits = xavier_uniform_limits(o)
+    
+    qkv_limits = uniform_limits(torch.cat([q, k, v], dim=1), dist=dist, dist_kwargs=dist_kwargs)
+    o_limits = uniform_limits(o, dist=dist, dist_kwargs=dist_kwargs)
     
     q_comp_baseline = compute_q_comp_baseline(qkv_shape, qkv_limits, o_limits, num_samples)
     k_comp_baseline = compute_k_comp_baseline(qkv_shape, qkv_limits, o_limits, num_samples)
