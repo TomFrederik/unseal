@@ -1,10 +1,11 @@
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 
 import torch
 
 from . import Attention, Tensor
+from .compositions import k_composition, q_composition, v_composition
 from .utils import get_o_weight, get_qkv_weights, uniform_limits
-from .compositions import q_composition, k_composition, v_composition
+
 
 def sample_single_matrix_uniform(
     low: float, 

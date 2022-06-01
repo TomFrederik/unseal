@@ -6,7 +6,7 @@ from transformers.models.gpt2.modeling_gpt2 import GPT2Attention
 
 from . import Attention, Tensor
 
-# TODO: both functions don't yet work if you have biases in the qkv and o modules.
+# TODO: both getter functions don't yet work if you have biases in the qkv and o modules.
 
 
 def get_qkv_weights(attention_module: Attention) -> Tuple[Tensor, Tensor, Tensor]:
@@ -31,7 +31,6 @@ def get_qkv_weights(attention_module: Attention) -> Tuple[Tensor, Tensor, Tensor
     v = einops.rearrange(v, '(num_heads head_dim) out_dim -> num_heads head_dim out_dim', head_dim=attention_module.head_dim)
     
     return q, k, v
-
 
 def get_o_weight(attention_module: Attention) -> Tensor:
     """Extracts the output projection matrix from an attention module. Matrix is reshaped to (num_heads, head_dim, out_dim)
@@ -82,7 +81,6 @@ def xavier_uniform_limits(weight: Tensor, gain: Optional[float] = 1.0) -> Tuple[
     :rtype: Tuple[float, float]
     """
     return (-gain * math.sqrt(6 / (weight.shape[0] + weight.shape[1])), gain * math.sqrt(6 / (weight.shape[0] + weight.shape[1])))
-
 
 def uniform_limits(
     weight: Tensor,
